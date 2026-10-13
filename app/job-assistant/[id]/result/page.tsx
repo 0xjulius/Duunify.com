@@ -4,7 +4,9 @@ import { use, useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import Sidebar from "@/components/Sidebar";
+import Header from "@/components/Header";
 import { ArrowLeft, CheckCircle2, Sparkles, Loader2, AlertCircle } from "lucide-react";
+import { toast } from "sonner"; // Tuodaan sonner
 
 import { StepIndicator } from "@/components/job-assistant/StepIndicator";
 import { ResultHeader, JobDetail } from "@/components/job-assistant/id/result/ResultHeader";
@@ -96,7 +98,7 @@ export default function ResultPage({
         if (existingLetter) {
           setGeneratedLetter(existingLetter);
         } else {
-          await generateLetterWithGemini(combinedData);
+          await generateLetterWithGemini(combinedData, true);
         }
       } catch (err: any) {
         console.error("Alustusvirhe:", err);
@@ -110,10 +112,9 @@ export default function ResultPage({
     }
   }, [jobId]);
 
-  async function generateLetterWithGemini(currentJob: JobDetail) {
+  async function generateLetterWithGemini(currentJob: JobDetail, isNewGeneration = false) {
     setGenerating(true);
     setError(null);
-    setGeneratedLetter("");
 
     const {
       data: { user },
@@ -133,13 +134,15 @@ export default function ResultPage({
       cvFilename = profile?.cv_filename;
     }
 
-    const { error: clearError } = await supabase
-      .from("applications")
-      .update({ cover_letter: null })
-      .eq("id", currentJob.id);
+    if (isNewGeneration) {
+      const { error: clearError } = await supabase
+        .from("applications")
+        .update({ cover_letter: null })
+        .eq("id", currentJob.id);
 
-    if (clearError) {
-      console.error("Vanhan kirjeen poisto epäonnistui tietokannasta:", clearError);
+      if (clearError) {
+        console.error("Vanhan kirjeen poisto epäonnistui tietokannasta:", clearError);
+      }
     }
 
     try {
@@ -175,12 +178,21 @@ export default function ResultPage({
           .from("applications")
           .update({ cover_letter: letterResult })
           .eq("id", currentJob.id);
+
+        // Päivitetään yläpalkin krediitit eventillä
+        window.dispatchEvent(new Event("ai-credits-updated"));
+
+        // SONNER TOAST: Onnistunut krediitin kulutus
+        toast.success("Saatekirje luotu! 1 AI-krediitti käytetty.");
       } else {
         throw new Error("API ei palauttanut tekstiä.");
       }
     } catch (e: any) {
       console.error("Generointivirhe:", e);
       setError(e.message || "Saatekirjeen luominen epäonnistui.");
+      
+      // SONNER TOAST: Virhetilanne (esim. krediitit loppu)
+      toast.error(e.message || "Saatekirjeen luominen epäonnistui.");
     } finally {
       setGenerating(false);
     }
@@ -204,9 +216,11 @@ export default function ResultPage({
         .eq("id", job.id);
 
       if (deleteError) throw deleteError;
+      toast.info("Saatekirje poistettu.");
     } catch (err: any) {
       console.error("Poistovirhe:", err);
       setError("Saatekirjeen poistaminen tietokannasta epäonnistui.");
+      toast.error("Poistaminen epäonnistui.");
     } finally {
       setGenerating(false);
     }
@@ -216,6 +230,7 @@ export default function ResultPage({
     if (!generatedLetter) return;
     await navigator.clipboard.writeText(generatedLetter);
     setCopied(true);
+    toast.success("Teksti kopioitu leikepöydälle!");
 
     setTimeout(() => {
       setCopied(false);
@@ -226,10 +241,13 @@ export default function ResultPage({
     return (
       <div className="flex min-h-screen bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-slate-100">
         <Sidebar />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3 text-slate-500">
-            <Loader2 size={36} className="animate-spin text-indigo-600" />
-            <p className="text-sm font-medium">Ladataan tietoja...</p>
+        <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+          <Header />
+          <div className="flex-1 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3 text-slate-500">
+              <Loader2 size={36} className="animate-spin text-indigo-600" />
+              <p className="text-sm font-medium">Ladataan tietoja...</p>
+            </div>
           </div>
         </main>
       </div>
@@ -240,22 +258,25 @@ export default function ResultPage({
     return (
       <div className="flex min-h-screen bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-slate-100">
         <Sidebar />
-        <main className="flex-1 flex items-center justify-center p-4">
-          <div className="max-w-xl mx-auto text-center">
-            <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto mb-4">
-              <AlertCircle size={24} />
+        <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+          <Header />
+          <div className="flex-1 flex items-center justify-center p-4">
+            <div className="max-w-xl mx-auto text-center">
+              <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto mb-4">
+                <AlertCircle size={24} />
+              </div>
+              <h1 className="text-xl font-bold">Jokin meni pieleen</h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
+                {error || "Tietoja ei saatu ladattua."}
+              </p>
+              <Link
+                href="/job-assistant"
+                className="inline-flex items-center gap-2 mt-6 px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-sm hover:bg-indigo-700 transition"
+              >
+                <ArrowLeft size={16} />
+                Palaa työnhakuavustajaan
+              </Link>
             </div>
-            <h1 className="text-xl font-bold">Jokin meni pieleen</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-              {error || "Tietoja ei saatu ladattua."}
-            </p>
-            <Link
-              href="/job-assistant"
-              className="inline-flex items-center gap-2 mt-6 px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-sm hover:bg-indigo-700 transition"
-            >
-              <ArrowLeft size={16} />
-              Palaa työnhakuavustajaan
-            </Link>
           </div>
         </main>
       </div>
@@ -297,8 +318,10 @@ export default function ResultPage({
 
       <Sidebar />
 
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 print:p-0">
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        <Header />
+
+        <div className="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 print:p-0">
           
           <div className="flex items-center justify-between mb-6 print:hidden">
             <Link
@@ -351,7 +374,7 @@ export default function ResultPage({
               onCityChange={setEditCity}
               onPhoneChange={setEditPhone}
               onEmailChange={setEditEmail}
-              onRegenerate={() => job && generateLetterWithGemini(job)}
+              onRegenerate={() => job && generateLetterWithGemini(job, true)}
             />
 
             <ResultSidebar
@@ -361,7 +384,7 @@ export default function ResultPage({
               isEditingHeader={isEditingHeader}
               onCopy={copyLetter}
               onPrint={() => window.print()}
-              onRegenerate={() => job && generateLetterWithGemini(job)}
+              onRegenerate={() => job && generateLetterWithGemini(job, true)}
               onToggleEditHeader={() => setIsEditingHeader(!isEditingHeader)}
               onDelete={deleteCoverLetter}
             />

@@ -16,13 +16,13 @@ export default async function AdminUsersPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Haetaan profiilit JA kaikki auth.users -tiedot
+  // Haetaan profiilit (mukaan lukien ai_credits) JA kaikki auth.users -tiedot
   const [profilesResult, authUsersResult, adminProfileResult] =
     await Promise.all([
       supabase
         .from("profiles")
         .select(
-          "id, email, full_name, avatar_url, role, created_at, is_banned,banned_until",
+          "id, email, full_name, avatar_url, role, created_at, is_banned, banned_until, ai_credits",
         )
         .order("created_at", { ascending: false }),
       supabaseAdmin.auth.admin.listUsers(), // Haetaan auth-käyttäjät
@@ -54,7 +54,8 @@ export default async function AdminUsersPage() {
   const users = profiles.map((p) => ({
     ...p,
     applicationCount: appCounts[p.id] || 0,
-    is_confirmed: confirmationMap.get(p.id) ?? false, // Tässä tieto viedään komponentille
+    is_confirmed: confirmationMap.get(p.id) ?? false,
+    ai_credits: p.ai_credits ?? 0, // Välitetään krediitit eteenpäin taulukolle
   }));
 
   return (

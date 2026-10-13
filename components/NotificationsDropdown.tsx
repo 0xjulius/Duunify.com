@@ -21,6 +21,36 @@ export interface NotificationItem {
   created_at: string;
 }
 
+// Apufunktio aikaleiman muotoiluun suomeksi
+function formatTimestamp(dateString: string) {
+  const date = new Date(dateString);
+  const now = new Date();
+
+  const isToday =
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear();
+
+  const timeString = date.toLocaleTimeString("fi-FI", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  if (isToday) {
+    return `Tänään klo ${timeString}`;
+  }
+
+  const isYesterday =
+    new Date(now.setDate(now.getDate() - 1)).toDateString() ===
+    date.toDateString();
+
+  if (isYesterday) {
+    return `Eilen klo ${timeString}`;
+  }
+
+  return `${date.toLocaleDateString("fi-FI")} klo ${timeString}`;
+}
+
 export default function NotificationsDropdown() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -198,15 +228,22 @@ export default function NotificationsDropdown() {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <p
-                    className={`text-sm truncate ${
-                      !item.read
-                        ? "font-semibold text-slate-900 dark:text-slate-100"
-                        : "font-medium text-slate-700 dark:text-slate-300"
-                    }`}
-                  >
-                    {item.title}
-                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p
+                      className={`text-sm truncate ${
+                        !item.read
+                          ? "font-semibold text-slate-900 dark:text-slate-100"
+                          : "font-medium text-slate-700 dark:text-slate-300"
+                      }`}
+                    >
+                      {item.title}
+                    </p>
+                    {item.created_at && (
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">
+                        {formatTimestamp(item.created_at)}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2 leading-relaxed">
                     {item.message.split(/("[^"]*")/).map((part, index) =>
                       part.startsWith('"') && part.endsWith('"') ? (

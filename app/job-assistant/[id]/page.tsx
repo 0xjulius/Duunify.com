@@ -4,7 +4,8 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import Sidebar from "@/components/Sidebar";
-import { ArrowLeft, Loader2, AlertCircle } from "lucide-react";
+import Header from "@/components/Header";
+import { ArrowLeft, Loader2, AlertCircle, Coins } from "lucide-react";
 
 import { StepIndicator } from "@/components/job-assistant/StepIndicator";
 import { JobHeader, Application } from "@/components/job-assistant/id/JobHeader";
@@ -250,10 +251,13 @@ export default function JobAssistantJobPage({
     return (
       <div className="flex min-h-screen bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-slate-100">
         <Sidebar />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3 text-slate-500">
-            <Loader2 size={36} className="animate-spin text-indigo-600" />
-            <p className="text-sm font-medium">Ladataan työpaikan tietoja...</p>
+        <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+          <Header />
+          <div className="flex-1 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3 text-slate-500">
+              <Loader2 size={36} className="animate-spin text-indigo-600" />
+              <p className="text-sm font-medium">Ladataan työpaikan tietoja...</p>
+            </div>
           </div>
         </main>
       </div>
@@ -264,22 +268,25 @@ export default function JobAssistantJobPage({
     return (
       <div className="flex min-h-screen bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-slate-100">
         <Sidebar />
-        <main className="flex-1 flex items-center justify-center p-4">
-          <div className="max-w-xl mx-auto text-center">
-            <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto mb-4">
-              <AlertCircle size={24} />
+        <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+          <Header />
+          <div className="flex-1 flex items-center justify-center p-4">
+            <div className="max-w-xl mx-auto text-center">
+              <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto mb-4">
+                <AlertCircle size={24} />
+              </div>
+              <h1 className="text-xl font-bold">Jokin meni pieleen</h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
+                {error || "Tietoja ei saatu ladattua."}
+              </p>
+              <Link
+                href="/job-assistant"
+                className="inline-flex items-center gap-2 mt-6 px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-sm hover:bg-indigo-700 transition"
+              >
+                <ArrowLeft size={16} />
+                Palaa työnhakuavustajaan
+              </Link>
             </div>
-            <h1 className="text-xl font-bold">Jokin meni pieleen</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-              {error || "Tietoja ei saatu ladattua."}
-            </p>
-            <Link
-              href="/job-assistant"
-              className="inline-flex items-center gap-2 mt-6 px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-sm hover:bg-indigo-700 transition"
-            >
-              <ArrowLeft size={16} />
-              Palaa työnhakuavustajaan
-            </Link>
           </div>
         </main>
       </div>
@@ -290,8 +297,10 @@ export default function JobAssistantJobPage({
     <div className="flex min-h-screen bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-slate-100">
       <Sidebar />
 
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        <Header />
+
+        <div className="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
           
           <Link
             href="/job-assistant"
@@ -301,7 +310,7 @@ export default function JobAssistantJobPage({
             Takaisin työpaikkoihin
           </Link>
 
-          {/* SIVUN ASKELEET - UUDELLEENKÄYTETTY STEPINDICATOR */}
+          {/* SIVUN ASKELEET */}
           <StepIndicator currentStep={2} />
 
           {/* TYÖPAIKAN HEADER */}
@@ -312,6 +321,14 @@ export default function JobAssistantJobPage({
               onLogoError={() => setFailedLogo(true)}
             />
           )}
+
+          {/* KREDIITTi-INFO BORDER / BANNERI ENNEN GENEROINTIA */}
+          <div className="my-6 p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/60 flex items-center gap-3">
+            <Coins className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <div className="text-xs sm:text-sm text-indigo-900 dark:text-indigo-200">
+              <span className="font-semibold"></span> Saatekirjeen generointi ja räätälöinti työpaikalle kuluttaa <span className="font-bold">1 AI-krediitin</span>.
+            </div>
+          </div>
 
           {/* PÄÄSISÄLTÖ GRID */}
           <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_0.8fr] gap-6">

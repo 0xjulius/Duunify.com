@@ -16,6 +16,7 @@ import {
   User,
   CheckCircle2,
   Sliders,
+  Coins,
 } from "lucide-react";
 
 type Application = {
@@ -30,6 +31,7 @@ type Application = {
 type UserProfile = {
   cv_filename?: string;
   letter_filename?: string;
+  ai_credits?: number;
 };
 
 export default function GenerateCoverLetterPage({
@@ -60,6 +62,12 @@ export default function GenerateCoverLetterPage({
           data: { user },
         } = await supabase.auth.getUser();
 
+        if (!user) {
+          setError("Käyttäjää ei tunnistettu. Kirjaudu sisään uudelleen.");
+          setLoading(false);
+          return;
+        }
+
         // 1. Haetaan työpaikka
         const { data: jobData, error: jobError } = await supabase
           .from("applications")
@@ -76,17 +84,15 @@ export default function GenerateCoverLetterPage({
 
         setJob(jobData);
 
-        // 2. Haetaan käyttäjän tallennetut tiedostot profiilista
-        if (user) {
-          const { data: profileData } = await supabase
-            .from("profiles")
-            .select("cv_filename, letter_filename")
-            .eq("id", user.id)
-            .maybeSingle();
+        // 2. Haetaan käyttäjän tiedot ja AI-krediitit profiilista
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("cv_filename, letter_filename, ai_credits")
+          .eq("id", user.id)
+          .maybeSingle();
 
-          if (profileData) {
-            setProfile(profileData);
-          }
+        if (profileData) {
+          setProfile(profileData);
         }
 
         setLoading(false);
@@ -105,13 +111,26 @@ export default function GenerateCoverLetterPage({
   const handleGenerate = async () => {
     if (!job) return;
 
+    // Tarkistetaan paikallisesti ennen pyyntöä
+    if (profile?.ai_credits !== undefined && profile.ai_credits <= 0) {
+      setError("AI-krediittisi ovat loppuneet! Lataa lisää krediittejä jatkaaksesi.");
+      return;
+    }
+
     setGenerating(true);
     setError(null);
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       const response = await fetch("/api/generate-cover-letter", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({
           jobTitle: job.job_title,
           company: job.company,
@@ -120,15 +139,21 @@ export default function GenerateCoverLetterPage({
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error("Generointi epäonnistui.");
+        throw new Error(data.error || "Generointi epäonnistui.");
       }
 
-      const data = await response.json();
-      setGeneratedLetter(data.letter || data.text || "");
+      setGeneratedLetter(data.coverLetter || data.letter || data.text || "");
+      
+      // Päivitetään krediittisaldo käyttöliittymään vähentämällä yksi
+      if (profile) {
+        setProfile((prev) => prev ? { ...prev, ai_credits: Math.max(0, (prev.ai_credits ?? 1) - 1) } : null);
+      }
     } catch (err: any) {
       console.error("Generointivirhe:", err);
-      setError("Saatekirjeen luominen epäonnistui. Yritä uudelleen.");
+      setError(err.message || "Saatekirjeen luominen epäonnistui. Yritä uudelleen.");
     } finally {
       setGenerating(false);
     }
@@ -176,14 +201,24 @@ export default function GenerateCoverLetterPage({
     <main className="min-h-screen bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-slate-100">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
         
-        {/* BACK */}
-        <Link
-          href={`/job-assistant/${jobId}`}
-          className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition mb-8"
-        >
-          <ArrowLeft size={17} />
-          Takaisin vaiheeseen 2
-        </Link>
+        {/* BACK & CREDITS HEADER */}
+        <div className="flex items-center justify-between mb-8">
+          <Link
+            href={`/job-assistant`}
+            className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+          >
+            <ArrowLeft size={17} />
+            Takaisin työpaikkoihin
+          </Link>
+
+          {/* AI-KREDIITTISALDO */}
+          <div className="flex items-center gap-2 px-3.5 py-1.5 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl">
+            <Coins size={15} className="text-indigo-600 dark:text-indigo-400" />
+            <span className="text-xs font-semibold text-indigo-900 dark:text-indigo-200">
+              {profile?.ai_credits ?? 0} AI-krediittiä jäljellä
+            </span>
+          </div>
+        </div>
 
         {/* PAGE TITLE */}
         <div className="mb-8">
@@ -252,17 +287,29 @@ export default function GenerateCoverLetterPage({
           )}
         </div>
 
+        {/* ERROR MESSAGE BANNER */}
+        {error && (
+          <div className="mb-6 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/50 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+            <div className="text-sm text-rose-800 dark:text-rose-200">{error}</div>
+          </div>
+        )}
+
         {/* GENERATION / RESULTS AREA */}
         <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-[#1F2937] rounded-3xl p-6 sm:p-8 shadow-sm">
           {!generatedLetter && !generating && (
             <div className="text-center py-6">
               <button
                 onClick={handleGenerate}
-                className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-base transition shadow-xl shadow-indigo-600/25"
+                disabled={profile?.ai_credits !== undefined && profile.ai_credits <= 0}
+                className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-base transition shadow-xl shadow-indigo-600/25 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Sparkles size={20} />
-                Generoi saatekirje Geminillä
+                Generoi saatekirje Geminillä (1 krediitti)
               </button>
+              {profile?.ai_credits !== undefined && profile.ai_credits <= 0 && (
+                <p className="text-xs text-rose-500 mt-2">Krediitit ovat loppuneet.</p>
+              )}
             </div>
           )}
 
@@ -281,12 +328,13 @@ export default function GenerateCoverLetterPage({
               <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-200 dark:border-[#1F2937]">
                 <div className="flex items-center gap-2 font-bold text-base">
                   <Sparkles size={18} className="text-indigo-600" />
-                  Valmis valmis saatekirje
+                  Valmis saatekirje
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleGenerate}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                    disabled={profile?.ai_credits !== undefined && profile.ai_credits <= 0}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition disabled:opacity-50"
                   >
                     <RefreshCw size={14} />
                     Generoi uudelleen
@@ -305,10 +353,6 @@ export default function GenerateCoverLetterPage({
                 {generatedLetter}
               </div>
             </div>
-          )}
-
-          {error && generatedLetter && (
-            <p className="text-sm text-red-500 mt-4 text-center">{error}</p>
           )}
         </div>
 

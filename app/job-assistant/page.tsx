@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import Sidebar from "@/components/Sidebar";
-import Header from "@/components/Header"; // Varmista että polku vastaa projektisi Header-komponenttia
-import { Search, CheckCircle2, ChevronRight } from "lucide-react";
+import Header from "@/components/Header";
+import { Search, CheckCircle2, ChevronRight, FileText } from "lucide-react";
 
 import { StepIndicator } from "@/components/job-assistant/StepIndicator";
 import { JobList } from "@/components/job-assistant/JobList";
@@ -72,8 +72,18 @@ export default function JobAssistantPage() {
         <Header />
 
         <div className="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-          {/* HEADER */}
-          <JobAssistantHeader />
+          {/* YLÄOSA & NAPPI SAATEKIRJEILLE */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+            <JobAssistantHeader />
+
+            <Link
+              href="/job-assistant/cover-letters"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white dark:bg-[#111827] border border-slate-200 dark:border-[#1F2937] text-slate-700 dark:text-slate-200 text-sm font-semibold shadow-sm hover:border-indigo-500/50 transition shrink-0"
+            >
+              <FileText size={16} className="text-indigo-600 dark:text-indigo-400" />
+              <span>Generoidut saatekirjeet</span>
+            </Link>
+          </div>
 
           {/* STEP INDICATOR */}
           <StepIndicator currentStep={1} />

@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import UserDetailsModal from "@/components/Admin/UserDetailsModal";
 import { toast } from "sonner";
-import { Search, Trash2, ShieldCheck, Shield, Bell, BellOff, Mail, MailCheck, Ban, UserCheck } from "lucide-react";
+import { Search, Trash2, ShieldCheck, Shield, Bell, BellOff, Mail, MailCheck, Ban, UserCheck, Coins, Plus, Minus, Eye, AlertTriangle } from "lucide-react";
 
 interface UserRow {
   id: string;
@@ -15,7 +16,21 @@ interface UserRow {
   applicationCount: number;
   is_confirmed?: boolean;
   is_banned?: boolean;
-  banned_until?: string | null; // Supabasen oma sarake auth.users-taulussa
+  banned_until?: string | null;
+  ai_credits: number;
+}
+
+function getCreditBadgeStyles(credits: number) {
+  if (credits === 0) {
+    return "bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300";
+  }
+  if (credits < 5) {
+    return "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/60 text-amber-700 dark:text-amber-300";
+  }
+  if (credits < 10) {
+    return "bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900/60 text-blue-700 dark:text-blue-300";
+  }
+  return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-300";
 }
 
 export default function UsersTable({ 
@@ -33,14 +48,22 @@ export default function UsersTable({
   const [deleting, setDeleting] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   
-  // Bänni-modalin tilat
   const [banTarget, setBanTarget] = useState<UserRow | null>(null);
   const [banDuration, setBanDuration] = useState<string>("24h");
   const [banning, setBanning] = useState(false);
 
-  // Uudet tilat admin-varmistusmodalille
+  // Uusi tila eston poiston (unban) varmistukselle taulukosta
+  const [unbanTarget, setUnbanTarget] = useState<UserRow | null>(null);
+  const [unbanning, setUnbanning] = useState(false);
+
   const [roleTarget, setRoleTarget] = useState<UserRow | null>(null);
   const [updatingRole, setUpdatingRole] = useState(false);
+
+  const [creditTarget, setCreditTarget] = useState<UserRow | null>(null);
+  const [creditAmount, setCreditAmount] = useState<number>(0);
+  const [updatingCredits, setUpdatingCredits] = useState(false);
+
+  const [selectedUserForDetails, setSelectedUserForDetails] = useState<UserRow | null>(null);
   
   const [notifyNewUsers, setNotifyNewUsers] = useState(initialNotifySettings);
   const [updatingNotify, setUpdatingNotify] = useState(false);
@@ -48,22 +71,6 @@ export default function UsersTable({
   const filtered = users.filter((u) =>
     (u.email + (u.full_name || "")).toLowerCase().includes(query.toLowerCase())
   );
-
-  // Muotoillaan Supabasen banned_until-aikaleima selkeäksi tekstiksi
-  function formatBanDuration(bannedUntil: string | null | undefined) {
-    if (!bannedUntil) return "Ikuisesti";
-    
-    const date = new Date(bannedUntil);
-    const now = new Date();
-    
-    // Jos bänni ulottuu erittäin pitkälle tulevaisuuteen (esim. 10 vuotta / 87600h), näytetään "Ikuisesti"
-    const diffYears = (date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24 * 365);
-    if (diffYears > 5) {
-      return "Ikuisesti";
-    }
-
-    return `päättyy ${date.toLocaleDateString("fi-FI")} klo ${date.toLocaleTimeString("fi-FI", { hour: "2-digit", minute: "2-digit" })}`;
-  }
 
   async function handleBanSubmit() {
     if (!banTarget) return;
@@ -73,50 +80,83 @@ export default function UsersTable({
     }
 
     setBanning(true);
-    const shouldBan = !banTarget.is_banned;
-
     const res = await fetch(`/api/admin/users/${banTarget.id}/ban`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
-        ban: shouldBan,
-        duration: shouldBan ? banDuration : "none"
+        ban: true,
+        duration: banDuration
       }),
     });
 
     setBanning(false);
 
     if (!res.ok) {
-      toast.error(shouldBan ? "Käyttäjän estäminen epäonnistui." : "Eston poistaminen epäonnistui.");
+      toast.error("Käyttäjän estäminen epäonnistui.");
       return;
     }
 
-    // Lasketaan uusi päättymisaika paikallisesti tilan päivitystä varten
     let newBannedUntil: string | null = null;
-    if (shouldBan) {
-      const hours = parseInt(banDuration);
-      if (!isNaN(hours)) {
-        const d = new Date();
-        d.setHours(d.getHours() + hours);
-        newBannedUntil = d.toISOString();
-      }
+    const hours = parseInt(banDuration);
+    if (!isNaN(hours)) {
+      const d = new Date();
+      d.setHours(d.getHours() + hours);
+      newBannedUntil = d.toISOString();
     }
 
     setUsers((prev) =>
-      prev.map((u) => (u.id === banTarget.id ? { ...u, is_banned: shouldBan, banned_until: newBannedUntil } : u))
+      prev.map((u) => (u.id === banTarget.id ? { ...u, is_banned: true, banned_until: newBannedUntil } : u))
     );
-    toast.success(shouldBan ? `Käyttäjä ${banTarget.email} estetty kestolla: ${getDurationLabel(banDuration)}.` : `Käyttäjän ${banTarget.email} esto poistettu.`);
+    toast.success(`Käyttäjä ${banTarget.email} estetty.`);
     setBanTarget(null);
   }
 
-  function getDurationLabel(value: string) {
-    switch (value) {
-      case "24h": return "1 päivä";
-      case "168h": return "1 viikko";
-      case "720h": return "1 kuukausi";
-      case "87600h": return "Ikuisesti";
-      default: return value;
+  // Funktio eston poistolle varmistuksen kautta
+  async function handleUnbanSubmit() {
+    if (!unbanTarget) return;
+
+    setUnbanning(true);
+    const res = await fetch(`/api/admin/users/${unbanTarget.id}/ban`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ban: false, duration: "none" }),
+    });
+
+    setUnbanning(false);
+
+    if (!res.ok) {
+      toast.error("Eston poistaminen epäonnistui.");
+      return;
     }
+
+    setUsers((prev) =>
+      prev.map((u) => (u.id === unbanTarget.id ? { ...u, is_banned: false, banned_until: null } : u))
+    );
+    toast.success(`Käyttäjän ${unbanTarget.email} esto poistettu.`);
+    setUnbanTarget(null);
+  }
+
+  async function handleUpdateCredits() {
+    if (!creditTarget) return;
+    setUpdatingCredits(true);
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ ai_credits: creditAmount })
+      .eq("id", creditTarget.id);
+
+    setUpdatingCredits(false);
+
+    if (error) {
+      toast.error("Krediittien päivitys epäonnistui.");
+      return;
+    }
+
+    setUsers((prev) =>
+      prev.map((u) => (u.id === creditTarget.id ? { ...u, ai_credits: creditAmount } : u))
+    );
+    toast.success(`Krediitit päivitetty.`);
+    setCreditTarget(null);
   }
 
   async function handleManuallyConfirm(user: UserRow) {
@@ -137,7 +177,7 @@ export default function UsersTable({
     setUsers((prev) =>
       prev.map((u) => (u.id === user.id ? { ...u, is_confirmed: true } : u))
     );
-    toast.success(`Käyttäjä ${user.email} vahvistettu onnistuneesti!`);
+    toast.success("Käyttäjä vahvistettu onnistuneesti!");
   }
 
   async function handleNotificationToggle(checked: boolean) {
@@ -160,7 +200,6 @@ export default function UsersTable({
     toast.success(checked ? "Sähköposti-ilmoitukset päällä 🚀" : "Ilmoitukset poistettu käytöstä.");
   }
 
-  // Käsittelee roolin vaihtamisen modalin hyväksynnän jälkeen
   async function confirmRoleToggle() {
     if (!roleTarget) return;
     if (roleTarget.id === currentAdminId) {
@@ -187,9 +226,7 @@ export default function UsersTable({
       prev.map((u) => (u.id === roleTarget.id ? { ...u, role: newRole } : u))
     );
     
-    toast.success(
-      newRole === "admin" ? `Käyttäjästä ${roleTarget.email} tehtiin admin.` : `Käyttäjän ${roleTarget.email} admin-oikeudet poistettu.`
-    );
+    toast.success("Rooli päivitetty.");
     setRoleTarget(null);
   }
 
@@ -256,7 +293,12 @@ export default function UsersTable({
                   <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-zinc-800 flex-shrink-0" />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-slate-900 dark:text-white truncate">{u.full_name || "—"}</p>
+                  <p 
+                    onClick={() => setSelectedUserForDetails(u)} 
+                    className="font-semibold text-slate-900 dark:text-white truncate cursor-pointer hover:underline"
+                  >
+                    {u.full_name || "—"}
+                  </p>
                   <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{u.email}</p>
                 </div>
               </div>
@@ -267,50 +309,68 @@ export default function UsersTable({
                 }`}>
                   {u.role === "admin" ? "Admin" : "Käyttäjä"}
                 </span>
+
+                <span className={`px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 border ${getCreditBadgeStyles(u.ai_credits)}`}>
+                  <Coins size={12} /> {u.ai_credits} krediittiä
+                </span>
+
                 {u.is_banned ? (
                   <span className="bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400 px-2 py-0.5 rounded-full font-bold">
-                    Estetty ({formatBanDuration(u.banned_until)})
+                    Estetty
                   </span>
                 ) : u.is_confirmed ? (
                   <span className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full font-semibold">Vahvistettu</span>
                 ) : (
                   <span className="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-semibold">Odottaa</span>
                 )}
-                <span className="text-slate-400 dark:text-slate-500 py-0.5">{u.applicationCount} hakemusta</span>
               </div>
-              
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
-                Liittynyt: {new Date(u.created_at).toLocaleDateString("fi-FI")}
-              </p>
 
               <div className="flex justify-end gap-1 border-t border-slate-100 dark:border-[#1F2937]/40 pt-2">
                 <button
+                  onClick={() => setSelectedUserForDetails(u)}
+                  title="Näytä historia ja tiedot"
+                  className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-[#0B0F19]"
+                >
+                  <Eye size={16} />
+                </button>
+                <button
+                  onClick={() => { setCreditTarget(u); setCreditAmount(u.ai_credits); }}
+                  title="Muokkaa krediittejä"
+                  className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-[#0B0F19]"
+                >
+                  <Coins size={16} />
+                </button>
+                <button
                   onClick={() => handleManuallyConfirm(u)}
                   disabled={u.is_confirmed || confirmingId === u.id}
-                  className={`p-2 rounded-lg ${u.is_confirmed ? "text-emerald-500" : "text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-[#0B0F19]"}`}
+                  className={`p-2 rounded-lg ${u.is_confirmed ? "text-emerald-500" : "text-slate-400 hover:bg-slate-100 dark:hover:bg-[#0B0F19]"}`}
                 >
                   {u.is_confirmed ? <MailCheck size={16} /> : <Mail size={16} />}
                 </button>
                 <button
                   onClick={() => {
-                    if (u.is_banned) { setBanTarget(u); handleBanSubmit(); }
-                    else { setBanTarget(u); setBanDuration("24h"); }
+                    if (u.is_banned) {
+                      setUnbanTarget(u); // Avaa varmistusmodalin eston poistolle
+                    } else {
+                      setBanTarget(u);
+                      setBanDuration("24h");
+                    }
                   }}
                   disabled={u.id === currentAdminId}
-                  className={`p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#0B0F19] ${u.is_banned ? "text-rose-500" : "text-slate-400 dark:text-slate-500"}`}
+                  className={`p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#0B0F19] ${u.is_banned ? "text-rose-500" : "text-slate-400"}`}
                 >
                   {u.is_banned ? <UserCheck size={16} /> : <Ban size={16} />}
                 </button>
                 <button
                   onClick={() => setRoleTarget(u)}
                   disabled={u.id === currentAdminId}
-                  className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#0B0F19]"
+                  className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-[#0B0F19]"
                 >
                   {u.role === "admin" ? <Shield size={16} /> : <ShieldCheck size={16} />}
                 </button>
                 <button
                   onClick={() => setDeleteTarget(u)}
-                  className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:text-rose-600"
+                  className="p-2 rounded-lg text-slate-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:text-rose-600"
                 >
                   <Trash2 size={16} />
                 </button>
@@ -327,6 +387,7 @@ export default function UsersTable({
             <tr className="text-left text-xs text-slate-400 dark:text-slate-500 uppercase border-b border-slate-100 dark:border-[#1F2937]/40 bg-slate-50/50 dark:bg-[#0B0F19]">
               <th className="px-6 py-3.5 font-bold tracking-wider">Käyttäjä</th>
               <th className="px-6 py-3.5 font-bold tracking-wider">Rooli</th>
+              <th className="px-6 py-3.5 font-bold tracking-wider">AI-krediitit</th>
               <th className="px-6 py-3.5 font-bold tracking-wider">Hakemuksia</th>
               <th className="px-6 py-3.5 font-bold tracking-wider">Liittymisaika</th>
               <th className="px-6 py-3.5 font-bold tracking-wider text-right">Toiminnot</th>
@@ -335,7 +396,7 @@ export default function UsersTable({
           <tbody className="divide-y divide-slate-100 dark:divide-[#1F2937]/30">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">Ei käyttäjiä löytynyt.</td>
+                <td colSpan={6} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">Ei käyttäjiä löytynyt.</td>
               </tr>
             ) : (
               filtered.map((u) => (
@@ -348,13 +409,16 @@ export default function UsersTable({
                         <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-zinc-800 flex-shrink-0" />
                       )}
                       <div className="min-w-0">
-                        <p className="font-semibold text-slate-900 dark:text-white truncate">{u.full_name || "—"}</p>
+                        <p 
+                          onClick={() => setSelectedUserForDetails(u)} 
+                          className="font-semibold text-slate-900 dark:text-white truncate cursor-pointer hover:underline"
+                        >
+                          {u.full_name || "—"}
+                        </p>
                         <div className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1.5 truncate">
                           <span>{u.email}</span>
                           {u.is_banned ? (
-                            <span className="text-[10px] bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400 px-1.5 py-0.5 rounded-full font-bold">
-                              Estetty ({formatBanDuration(u.banned_until)})
-                            </span>
+                            <span className="text-[10px] bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400 px-1.5 py-0.5 rounded-full font-bold">Estetty</span>
                           ) : u.is_confirmed ? (
                             <span className="text-[10px] bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded-full font-bold">Vahvistettu</span>
                           ) : (
@@ -371,6 +435,16 @@ export default function UsersTable({
                       {u.role === "admin" ? "Admin" : "Käyttäjä"}
                     </span>
                   </td>
+                  <td className="px-6 py-4">
+                    <button
+                      onClick={() => { setCreditTarget(u); setCreditAmount(u.ai_credits); }}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border font-bold text-xs transition cursor-pointer shadow-sm ${getCreditBadgeStyles(u.ai_credits)}`}
+                      title="Muokkaa krediittejä"
+                    >
+                      <Coins size={13} />
+                      <span>{u.ai_credits} kpl</span>
+                    </button>
+                  </td>
                   <td className="px-6 py-4 text-slate-600 dark:text-slate-300 font-medium">{u.applicationCount}</td>
                   <td className="px-6 py-4 text-slate-400 dark:text-slate-500 font-medium whitespace-nowrap">
                     {new Date(u.created_at).toLocaleDateString("fi-FI")}
@@ -378,42 +452,54 @@ export default function UsersTable({
                   <td className="px-6 py-4">
                     <div className="flex justify-end gap-1">
                       <button
+                        onClick={() => setSelectedUserForDetails(u)}
+                        title="Näytä historia ja tiedot"
+                        className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#0B0F19] text-slate-400 hover:text-indigo-600 transition"
+                      >
+                        <Eye size={16} />
+                      </button>
+                      <button
+                        onClick={() => { setCreditTarget(u); setCreditAmount(u.ai_credits); }}
+                        title="Muokkaa krediittejä"
+                        className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#0B0F19] text-slate-400 hover:text-indigo-600 transition"
+                      >
+                        <Coins size={16} />
+                      </button>
+                      <button
                         onClick={() => handleManuallyConfirm(u)}
                         disabled={u.is_confirmed || confirmingId === u.id}
-                        className={`p-2 rounded-lg transition ${u.is_confirmed ? "text-emerald-500 cursor-not-allowed" : "hover:bg-slate-100 dark:hover:bg-[#0B0F19] text-slate-400 dark:text-slate-500 hover:text-blue-500"}`}
+                        className={`p-2 rounded-lg transition ${u.is_confirmed ? "text-emerald-500 cursor-not-allowed" : "hover:bg-slate-100 dark:hover:bg-[#0B0F19] text-slate-400 hover:text-blue-500"}`}
                       >
                         {u.is_confirmed ? <MailCheck size={16} /> : <Mail size={16} />}
                       </button>
 
                       <button
-                        onClick={async () => {
+                        onClick={() => {
                           if (u.is_banned) {
-                            setBanTarget(u);
-                            setTimeout(() => handleBanSubmit(), 50);
+                            setUnbanTarget(u); // Avaa vahvistusmodalin eston poistolle
                           } else {
                             setBanTarget(u);
                             setBanDuration("24h");
                           }
                         }}
                         disabled={u.id === currentAdminId}
-                        className={`p-2 rounded-lg transition hover:bg-slate-100 dark:hover:bg-[#0B0F19] ${u.is_banned ? "text-rose-500" : "text-slate-400 dark:text-slate-500 hover:text-rose-500"}`}
+                        className={`p-2 rounded-lg transition hover:bg-slate-100 dark:hover:bg-[#0B0F19] ${u.is_banned ? "text-rose-500" : "text-slate-400 hover:text-rose-500"}`}
                       >
                         {u.is_banned ? <UserCheck size={16} /> : <Ban size={16} />}
                       </button>
 
-                      {/* ROOLIN VAIHTO (AVAA MODALIN) */}
                       <button
                         onClick={() => setRoleTarget(u)}
                         disabled={u.id === currentAdminId}
-                        title={u.role === "admin" ? "Poista admin-oikeus" : "Tee adminiksi"}
-                        className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#0B0F19] text-slate-500 dark:text-slate-400"
+                        title="Vaihda rooli"
+                        className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-[#0B0F19] text-slate-500"
                       >
                         {u.role === "admin" ? <Shield size={16} /> : <ShieldCheck size={16} />}
                       </button>
 
                       <button
                         onClick={() => setDeleteTarget(u)}
-                        className="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/20 text-slate-500 dark:text-slate-400 hover:text-rose-600"
+                        className="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/20 text-slate-500 hover:text-rose-600"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -425,6 +511,78 @@ export default function UsersTable({
           </tbody>
         </table>
       </div>
+
+      {/* KÄYTTÄJÄN HISTORIA- JA TIEDOTMODALI */}
+      <UserDetailsModal
+        user={selectedUserForDetails}
+        onClose={() => setSelectedUserForDetails(null)}
+      />
+
+      {/* KREDIITTIEN MUOKKAUSMODALI */}
+      {creditTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+          style={{ background: "rgba(3, 7, 18, 0.6)" }}
+          onClick={() => setCreditTarget(null)}
+        >
+          <div
+            className="bg-white dark:bg-[#111827] rounded-2xl p-6 max-w-sm w-full border border-slate-200 dark:border-[#1F2937] shadow-xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
+                <Coins size={20} />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Muokkaa AI-krediittejä</h3>
+                <p className="text-xs text-slate-400 truncate max-w-[200px]">{creditTarget.email}</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Krediittimäärä</label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCreditAmount((prev) => Math.max(0, prev - 1))}
+                  className="h-10 w-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition font-bold"
+                >
+                  <Minus size={16} />
+                </button>
+                <input
+                  type="number"
+                  value={creditAmount}
+                  onChange={(e) => setCreditAmount(parseInt(e.target.value) || 0)}
+                  className="flex-1 h-10 text-center bg-slate-50 dark:bg-[#0B0F19] border border-slate-200 dark:border-[#1F2937]/50 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setCreditAmount((prev) => prev + 1)}
+                  className="h-10 w-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition font-bold"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setCreditTarget(null)}
+                className="flex-1 h-10 rounded-xl border border-slate-200 dark:border-[#1F2937] text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#0B0F19] transition"
+              >
+                Peruuta
+              </button>
+              <button
+                onClick={handleUpdateCredits}
+                disabled={updatingCredits}
+                className="flex-1 h-10 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold shadow-sm transition disabled:opacity-50"
+              >
+                {updatingCredits ? "Tallennetaan..." : "Tallenna"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ROOLIN MUUTOKSEN VARMISTUSMODALI */}
       {roleTarget && (
@@ -446,10 +604,7 @@ export default function UsersTable({
                 {roleTarget.role === "admin" ? "Poistetaanko admin-oikeudet?" : "Tehdäänkö käyttäjästä admin?"}
               </h3>
               <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
-                Olet muuttamassa käyttäjän <strong className="text-slate-800 dark:text-slate-200">{roleTarget.email}</strong> roolia. 
-                {roleTarget.role === "admin" 
-                  ? " Hän menettää pääsyn tähän ylläpitopaneeliin." 
-                  : " Hän saa täydet oikeudet hallinnoida järjestelmää ja muita käyttäjiä."}
+                Olet muuttamassa käyttäjän <strong className="text-slate-800 dark:text-slate-200">{roleTarget.email}</strong> roolia.
               </p>
             </div>
 
@@ -472,7 +627,7 @@ export default function UsersTable({
         </div>
       )}
 
-      {/* BÄNNI-MODALI */}
+      {/* BÄNNI-MODALI (Aseta esto) */}
       {banTarget && !banTarget.is_banned && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
@@ -519,6 +674,45 @@ export default function UsersTable({
                 className="flex-1 h-10 rounded-xl bg-rose-600 dark:bg-rose-500 text-white text-sm font-bold shadow-sm hover:bg-rose-700 transition disabled:opacity-50"
               >
                 {banning ? "Estetään..." : "Aseta esto"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ESTON POISTON (UNBAN) VARMISTUSMODALI */}
+      {unbanTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+          style={{ background: "rgba(3, 7, 18, 0.6)" }}
+          onClick={() => setUnbanTarget(null)}
+        >
+          <div
+            className="bg-white dark:bg-[#111827] rounded-2xl p-6 max-w-sm w-full border border-slate-200 dark:border-[#1F2937] shadow-xl text-center space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400">
+              <AlertTriangle size={24} />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-lg">Haluatko poistaa eston?</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                Olet poistamassa eston käyttäjältä <strong className="text-slate-800 dark:text-slate-200">{unbanTarget.email}</strong>. Hän saa jälleen pääsyn järjestelmään.
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setUnbanTarget(null)}
+                className="flex-1 h-10 rounded-xl border border-slate-200 dark:border-[#1F2937] text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#0B0F19] transition"
+              >
+                Peruuta
+              </button>
+              <button
+                onClick={handleUnbanSubmit}
+                disabled={unbanning}
+                className="flex-1 h-10 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold shadow-sm transition disabled:opacity-50"
+              >
+                {unbanning ? "Poistetaan..." : "Kyllä, poista esto"}
               </button>
             </div>
           </div>

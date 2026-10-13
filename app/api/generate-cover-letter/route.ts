@@ -9,7 +9,6 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
 // 1. RATE LIMITER -ALUSTUS (Edellyttää UPSTASH_REDIS_REST_URL ja UPSTASH_REDIS_REST_TOKEN .env-tiedostossa)
-// Jos Upstash ei ole käytössä, voit kommentoida tämän osion tilapäisesti.
 const redis = Redis.fromEnv();
 const ratelimit = new Ratelimit({
   redis,
@@ -18,12 +17,18 @@ const ratelimit = new Ratelimit({
 });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseServiceKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 // Luodaan Supabase-asiakas palvelinpään hakuja varten
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-async function fetchAndParseFile(userId: string, prefix: string, filename: string) {
+async function fetchAndParseFile(
+  userId: string,
+  prefix: string,
+  filename: string,
+) {
   if (!userId || !filename) return "";
 
   try {
@@ -41,7 +46,9 @@ async function fetchAndParseFile(userId: string, prefix: string, filename: strin
     let successfulPath = "";
 
     for (const storagePath of uniquePaths) {
-      console.log(`[PDF DEBUG] Kokeillaan hakea tiedostoa polusta: ${storagePath}`);
+      console.log(
+        `[PDF DEBUG] Kokeillaan hakea tiedostoa polusta: ${storagePath}`,
+      );
       const result = await supabaseAdmin.storage
         .from("documents")
         .download(storagePath);
@@ -60,20 +67,26 @@ async function fetchAndParseFile(userId: string, prefix: string, filename: strin
       console.log(`✅ Tiedosto LÖYTYI polusta: ${successfulPath}`);
 
       if (fileData.size > 500 * 1024) {
-        console.error(`❌ Tiedosto ${filename} ylittää 500 KB kokorajan (${Math.round(fileData.size / 1024)} KB)`);
+        console.error(
+          `❌ Tiedosto ${filename} ylittää 500 KB kokorajan (${Math.round(fileData.size / 1024)} KB)`,
+        );
         return "";
       }
 
       const buffer = Buffer.from(await fileData.arrayBuffer());
 
       if (filename.toLowerCase().endsWith(".pdf")) {
-        console.log(`[PDF DEBUG] Aloitetaan PDF-tiedoston (${filename}) parsinta...`);
+        console.log(
+          `[PDF DEBUG] Aloitetaan PDF-tiedoston (${filename}) parsinta...`,
+        );
         const { PDFParse } = await import("pdf-parse");
         const parser = new PDFParse({ data: buffer });
 
         try {
           const parsedPdf = await parser.getText();
-          console.log(`✅ Tiedosto ${filename} PARSITTU ONNISTUNEESTI! (${parsedPdf.text.length} merkkiä)`);
+          console.log(
+            `✅ Tiedosto ${filename} PARSITTU ONNISTUNEESTI! (${parsedPdf.text.length} merkkiä)`,
+          );
           return parsedPdf.text;
         } finally {
           await parser.destroy();
@@ -83,10 +96,16 @@ async function fetchAndParseFile(userId: string, prefix: string, filename: strin
         return buffer.toString("utf-8");
       }
     } else {
-      console.error(`❌ Tiedoston ${filename} lataus epäonnistui kaikista kokeilluista poluista:`, uniquePaths);
+      console.error(
+        `❌ Tiedoston ${filename} lataus epäonnistui kaikista kokeilluista poluista:`,
+        uniquePaths,
+      );
     }
   } catch (fileErr) {
-    console.error(`❌ Virhe tiedoston ${filename} käsittelyssä/parsinnassa:`, fileErr);
+    console.error(
+      `❌ Virhe tiedoston ${filename} käsittelyssä/parsinnassa:`,
+      fileErr,
+    );
   }
   return "";
 }
@@ -99,8 +118,11 @@ export async function POST(req: Request) {
       const { success } = await ratelimit.limit(`generate_cover_letter_${ip}`);
       if (!success) {
         return NextResponse.json(
-          { error: "Olet tehnyt liian monta pyyntöä lyhyen ajan sisällä. Odota hetki ja yritä uudelleen." },
-          { status: 429 }
+          {
+            error:
+              "Olet tehnyt liian monta pyyntöä lyhyen ajan sisällä. Odota hetki ja yritä uudelleen.",
+          },
+          { status: 429 },
         );
       }
     }
@@ -111,22 +133,13 @@ export async function POST(req: Request) {
 
     if (authHeader) {
       const token = authHeader.replace("Bearer ", "");
-      const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+      const {
+        data: { user },
+      } = await supabaseAdmin.auth.getUser(token);
       if (user) {
         authenticatedUserId = user.id;
       }
     }
-
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "API-avain puuttuu konfiguraatiosta." },
-        { status: 500 }
-      );
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
 
     const body = await req.json();
     const {
@@ -135,7 +148,7 @@ export async function POST(req: Request) {
       jobDescription,
       job_description,
       userBaseCoverLetter,
-      userId: bodyUserId, // Käytetään varalla vain jos auth-headeria ei ole (esim. dev-ympäristössä)
+      userId: bodyUserId,
       userName,
       location = "Paikkakunta",
     } = body;
@@ -146,16 +159,58 @@ export async function POST(req: Request) {
     if (!userId) {
       return NextResponse.json(
         { error: "Käyttäjää ei tunnistettu. Kirjaudu sisään uudelleen." },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
+    // 4. KREDIITTIEIDEN TARKISTUS JA VÄHENNYS (RPC) ENNEN ILMOITUKSEN LUONTIA
+    const { data: creditSuccess, error: creditError } = await supabaseAdmin.rpc(
+      "use_ai_credit",
+      { target_user_id: userId },
+    );
+
+    if (creditError) {
+      console.error("Virhe krediittien tarkistuksessa:", creditError);
+      return NextResponse.json(
+        { error: "Krediittien tarkistus epäonnistui tietokannassa." },
+        { status: 500 },
+      );
+    }
+
+    // JOS KREDIITIT OVAT LOPUSSA, EI LUODA "KREDIITTI KÄYTETTY" -ILMOITUSTA
+    if (!creditSuccess) {
+      await supabaseAdmin.from("notifications").insert({
+        user_id: userId,
+        title: "AI-krediitit loppuneet",
+        message: "Saatekirjeen luonti epäonnistui, koska AI-krediittisi ovat loppu.",
+        type: "warning",
+        read: false,
+      });
+
+      return NextResponse.json(
+        {
+          error: "AI-krediittisi ovat loppuneet! Lataa lisää krediittejä jatkaaksesi.",
+        },
+        { status: 403 },
+      );
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "API-avain puuttuu konfiguraatiosta." },
+        { status: 500 },
+      );
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
     const rawJobDescription = jobDescription || job_description || "";
 
     let letterFilename = body.letterFilename;
     let cvFilename = body.cvFilename;
 
-    // 4. HAETAAN TIEDOSTOJEN NIMET PROFILES-TAULUSTA
+    // 5. HAETAAN TIEDOSTOJEN NIMET PROFILES-TAULUSTA
     if (!letterFilename || !cvFilename) {
       const { data: profile } = await supabaseAdmin
         .from("profiles")
@@ -169,12 +224,12 @@ export async function POST(req: Request) {
       }
     }
 
-    // 5. HAETAAN JA PARSITAAN SEKA CV ETTA HAKUKIRJE
+    // 6. HAETAAN JA PARSITAAN SEKÄ CV ETTÄ HAKUKIRJE
     const extractedCvText = await fetchAndParseFile(userId, "cv", cvFilename);
     const extractedLetterText = await fetchAndParseFile(
       userId,
       "letter",
-      letterFilename
+      letterFilename,
     );
 
     const combinedBaseText = [
@@ -189,7 +244,7 @@ export async function POST(req: Request) {
       .filter(Boolean)
       .join("\n\n");
 
-    // 6. ANONYMISOINTI
+    // 7. ANONYMISOINTI
     const safeBaseCoverLetter = anonymizeText(combinedBaseText, userName);
     const safeJobDescription = anonymizeText(rawJobDescription);
 
@@ -265,7 +320,7 @@ EHDOTON SÄÄNTÖ:
 3. Älä vähättele hakijan osaamista. Älä käytä sanoja kuten "juniori", "perusosaaminen" tai "vähän kokemusta". Keskity siihen, mitä hakija osaa ja mitä hyötyä siitä on työnantajalle.
 `;
 
-    // 7. GEMINI-KUTSU
+    // 8. GEMINI-KUTSU
     let response;
     let usedModel = "gemini-3.5-flash";
 
@@ -277,7 +332,7 @@ EHDOTON SÄÄNTÖ:
     } catch (primaryError: any) {
       console.warn(
         `Ensisijainen malli (${usedModel}) epäonnistui, yritetään varamallia...`,
-        primaryError?.message
+        primaryError?.message,
       );
 
       usedModel = "gemini-3.5-flash-lite";
@@ -291,6 +346,15 @@ EHDOTON SÄÄNTÖ:
       }
     }
 
+    // 9. LISÄTÄÄN ONNISTUNUT ILMOITUS VAIN KUN GENEROINTI ON VALMIS
+    await supabaseAdmin.from("notifications").insert({
+      user_id: userId,
+      title: "AI-krediitti käytetty",
+      message: `Saatekirje luotu kohteelle ${jobTitle} (${company}). Jäljellä olevat krediitit päivitetty.`,
+      type: "success",
+      read: false,
+    });
+
     return NextResponse.json({ coverLetter: response.text });
   } catch (error: any) {
     console.error("Gemini API backend virhe:", error);
@@ -301,7 +365,7 @@ EHDOTON SÄÄNTÖ:
           error:
             "Palvelussa on tilapäistä ruuhkaa (kiintiöraja saavutettu). Odota 30 sekuntia ja yritä uudelleen.",
         },
-        { status: 429 }
+        { status: 429 },
       );
     }
 
@@ -310,7 +374,7 @@ EHDOTON SÄÄNTÖ:
         error:
           error?.message || "Saatekirjeen generointi epäonnistui palvelimella.",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
