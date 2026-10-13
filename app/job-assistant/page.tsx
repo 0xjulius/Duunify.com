@@ -78,9 +78,12 @@ export default function JobAssistantPage() {
 
             <Link
               href="/job-assistant/cover-letters"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white dark:bg-[#111827] border border-slate-200 dark:border-[#1F2937] text-slate-700 dark:text-slate-200 text-sm font-semibold shadow-sm hover:border-indigo-500/50 transition shrink-0"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 text-sm font-bold shadow-sm hover:bg-indigo-100 dark:hover:bg-indigo-900/50 hover:border-indigo-300 dark:hover:border-indigo-700 transition shrink-0"
             >
-              <FileText size={16} className="text-indigo-600 dark:text-indigo-400" />
+              <FileText
+                size={16}
+                className="text-indigo-600 dark:text-indigo-400"
+              />
               <span>Generoidut saatekirjeet</span>
             </Link>
           </div>
@@ -94,7 +97,9 @@ export default function JobAssistantPage() {
             <div className="p-6 sm:p-8 border-b border-slate-200 dark:border-[#1F2937]">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-bold">Valitse työpaikkailmoitus</h2>
+                  <h2 className="text-lg font-bold">
+                    Valitse työpaikkailmoitus
+                  </h2>
                   <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                     Valitse yksi tallennetuista työpaikoista.
                   </p>
@@ -131,7 +136,8 @@ export default function JobAssistantPage() {
               <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                 <CheckCircle2 size={15} className="text-emerald-500" />
                 <span>
-                  Valitsemasi työpaikka käyttää Duunifyyn tallennettua työpaikkailmoitusta.
+                  Valitsemasi työpaikka käyttää Duunifyyn tallennettua
+                  työpaikkailmoitusta.
                 </span>
               </div>
             </div>
