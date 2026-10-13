@@ -1,254 +1,330 @@
 # Duunify
 
-**Duunify** on suomalaisille työnhakijoille suunnattu työhakemusten hallintasovellus. Se korvaa hajanaiset Excel-taulukot yhdellä paikalla, josta näkee koko hakuprosessin: mitä on haettu, missä vaiheessa kukin hakemus on, milloin haastattelut ja hakuajat ovat, ja miten hakeminen on edistynyt ajan myötä.
+**Duunify** on suomalaisille työnhakijoille suunnattu moderni työhakemusten hallinta- ja tekoälyavustuspalvelu. Se korvaa hajanaiset Excel-taulukot ja muistiot yhdellä helppokäyttöisellä alustalla, josta näkee koko hakuprosessin: mitä on haettu, missä vaiheessa kukin hakemus on, milloin haastattelut ja hakuajat ovat, ja miten hakeminen edistyy ajan myötä.
 
-Tavoite ei ole vain tallentaa rivejä, vaan aidosti helpottaa työnhaun arkea — automatisoida toistuva näppäily, näyttää trendit visuaalisesti, ja muistuttaa asioista joita muuten unohtuisi kesken kuormittavan hakuprosessin.
+Duunify ei ainoastaan seuraa työn hakemista, vaan auttaa myös **tekemään sitä** — automatisoimalla toistuvia työvaiheita, tuottamalla kohdennettuja saatekirjeitä tekoälyn avulla ja muistuttamalla tärkeistä määräajoista.
+
+---
 
 ## Ominaisuudet
 
-- **Automaattinen tietojen täyttö** — liitä työpaikkailmoituksen linkki (Duunitori, Työmarkkinatori, Jobly), ja yritys, tehtävänimike, palkka, sijainti ja kuvaus täyttyvät automaattisesti JSON-LD-rakenteisesta datasta.
-- **Hakemusten hallinta** — CRUD-toiminnot hakemuksille, tilaseuranta (Haettu / Haastattelu / Tarjous / Hylätty / Tallennettu), muistiinpanot, CV/liitetiedostot.
-- **Älykäs kalenteri** — haastattelut, hakuaikojen päättymiset ja itse luodut muistutukset samassa näkymässä. Tapahtumat voi merkitä valmiiksi, poistaa suoraan kalenterista, ja niitä voi selata isolla kuukausinäkymällä tai kompaktilla minikalenterilla.
-- **Dashboard ja visualisoinnit** — statusjakauma, hakemustrendi ajan yli, sijaintijakauma kartalla, GitHub-tyylinen aktiivisuusruudukko, sekä tulkitsevat mittarit kuten työnhaku-indeksi ja viikoittainen aktiivisuusprosentti.
-- **Toimintaloki** — automaattinen aikajana kaikista tapahtumista (hakemuksen luonti, tilamuutokset, kalenteritapahtumat, poistot), suodatettavissa tyypin ja ajanjakson mukaan, vietävissä CSV:nä.
-- **Suosikit** — työpaikkojen tallentaminen myöhempää hakemista varten, erillisillä tilastoilla ja suodattimilla.
-- **Admin-paneeli** — erillinen hallintanäkymä käyttäjien ja hakemusten valvontaan, roolipohjaisella pääsynhallinnalla sekä käyttäjien bännäystoiminnoilla.
-- **Yhteydenottolomake** — viestit tallentuvat tietokantaan ja lähetetään sähköpostitse, jotta mikään ei katoa vaikka sähköposti epäonnistuisi.
-- **Demo-tila** — kirjautumista vaatimaton esikatselu mock-datalla, jotta palvelun voi kokeilla ennen rekisteröitymistä.
+- **Automaattinen tietojen täyttö** — Liitä työpaikkailmoituksen linkki (Duunitori, Työmarkkinatori, Jobly jne.), ja järjestelmä poimii yrityksen, tehtävänimikkeen, palkan, sijainnin ja kuvaustiedot automaattisesti JSON-LD- ja HTML-jäsennyksen avulla.
+- **Tekoälypohjainen Työnhakuavustaja (AI Cover Letters)** — Generoi hakemaasi tehtävään ja omalle taustallesi räätälöityjä saatekirjeitä Google Gemini -tekoälymallilla.
+- **AI-kreditjärjestelmä & Onboarding** — Uusille käyttäjille tarjotaan **5 ilmaisilmaista tekoälykredittiä** heti rekisteröitymisen yhteydessä (`WelcomeModal`). Lisäkrediittejä voi ostaa helposti integroidun maksunäkymän kautta.
+- **Tietosuoja & Anonymisointi** — Ennen tekoälykäsittelyä teksteistä suodatetaan automaattisesti pois henkilötunnukset, sähköpostit, puhelinnumerot ja katuosoitteet (`lib/anonymize.ts`).
+- **Hakemusten hallinta** — Koko hakuprosessin tilaseuranta (Haettu / Haastattelu / Tarjous / Hylätty / Tallennettu), muistiinpanot, hakemushistoria ja CV/liitetiedostot.
+- **Älykäs kalenteri** — Haastattelut, hakuaikojen päättymiset ja omat muistutukset samassa näkymässä. Tapahtumia voi selata kuukausi- tai viikkonäkymällä sekä kompaktilla minikalenterilla.
+- **Dashboard ja analytiikka** — Hakemustrendit, statusjakaumat, karttanäkymä sijainneista, GitHub-tyylinen aktiivisuusruudukko sekä tulkitsevat mittarit työnhaun edistymisestä.
+- **Toimintaloki (History)** — Automaattinen aikajana kaikista tapahtumista (hakemuksen luonti, tilamuutokset, kalenterimerkinnät jne.), suodatettavissa ja vietävissä CSV-muodossa.
+- **Suosikit** — Mielenkiintoisten työpaikkojen tallentaminen myöhempää hakemista ja analysointia varten.
+- **Suojattu yhteydenottolomake** — Yhteydenotot tallentuvat tietokantaan ja reitittyvät sähköpostitse varmennetulta `duunify.com`-domainilta. Lomailevat bottiverkot estetään **Upstash Rate Limiting** -suojauksella ja piilotetulla honeypot-kentällä.
+- **Admin-paneeli & Bännijärjestelmä** — Hallintanäkymä käyttäjien, lokien ja hakemusten valvontaan, roolipohjaisella pääsynhallinnalla (RBAC) sekä käyttäjien estotoiminnoilla (`proxy.ts`).
+- **Demo-tila** — Kirjautumista vaatimaton esikatselu mock-datalla ja suomalaisten yritysten logoilla.
+
+---
 
 ## Teknologiat
 
 | Osa-alue | Teknologia |
 |---|---|
-| Framework | Next.js (App Router) |
-| Kieli | TypeScript |
-| Tyylit | Tailwind CSS |
-| Tietokanta & Auth | Supabase (Postgres, Row Level Security, Auth, Storage) |
-| Sähköposti | Resend |
-| Kaaviot | Recharts |
-| Kalenteri | react-big-calendar |
-| Ilmoitukset (toast) | Sonner |
-| Web-scraping | Cheerio |
-| Deployment | Vercel |
+| **Framework** | Next.js (App Router) |
+| **Kieli** | TypeScript |
+| **Tyylit & Animaatiot** | Tailwind CSS, Framer Motion |
+| **Tietokanta & Auth** | Supabase (Postgres, Row Level Security, Auth, Storage) |
+| **Tekoäly (AI)** | Google Gemini API |
+| **Maksut** | Stripe |
+| **Sähköposti** | Resend (Verifioitu `duunify.com` domain) |
+| **Rate Limiting** | Upstash Redis |
+| **Kaaviot** | Recharts |
+| **Kalenteri** | react-big-calendar |
+| **Ilmoitukset (Toast)** | Sonner |
+| **Web-scraping** | Cheerio |
+| **Deployment** | Vercel |
 
 ## Projektin rakenne
 
 ```
 duunify/
-│
-├── app/                                  # Next.js App Router
-│   │
-│   ├── layout.tsx                        # Koko sovelluksen layout
-│   ├── page.tsx                          # Landing page
-│   ├── globals.css                       # Globaalit tyylit
-│   ├── favicon.ico
-│   │
-│   ├── admin/                            # Admin-paneeli
+├── .env.local
+├── .gitignore
+├── app
+│   ├── admin
+│   │   ├── applications
 │   │   ├── layout.tsx
-│   │   ├── page.tsx
-│   │   ├── logs/
+│   │   ├── logs
 │   │   │   └── page.tsx
-│   │   └── users/
+│   │   ├── page.tsx
+│   │   └── users
 │   │       └── page.tsx
-│   │
-│   ├── api/                              # API Routes
-│   │   ├── admin/
-│   │   │   └── users/
-│   │   │       └── [id]/
-│   │   │           ├── ban/              # Reitti käyttäjien bännäämiselle
+│   ├── api
+│   │   ├── admin
+│   │   │   └── users
+│   │   │       └── [id]
+│   │   │           ├── ban
+│   │   │           │   └── route.ts
+│   │   │           ├── confirm
 │   │   │           │   └── route.ts
 │   │   │           └── route.ts
-│   │   ├── contact/
+│   │   ├── contact
 │   │   │   └── route.ts
-│   │   └── parse-job/
-│   │       └── route.ts
-│   │
-│   ├── applications/
-│   │   ├── page.tsx
+│   │   ├── cron
+│   │   │   └── route.ts
+│   │   ├── generate-cover-letter
+│   │   │   └── route.ts
+│   │   ├── parse-job
+│   │   │   └── route.ts
+│   │   ├── ping
+│   │   │   └── route.ts
+│   │   └── webhooks
+│   │       └── new-user
+│   │           └── route.ts
+│   ├── applications
 │   │   ├── AddApplicationForm.tsx
 │   │   ├── ApplicationCard.tsx
 │   │   ├── ApplicationDialog.tsx
-│   │   └── [id]/
-│   │       └── page.tsx
-│   │
-│   ├── banned/                           # Porttikieltosivu estetyille käyttäjille
+│   │   ├── page.tsx
+│   │   └── [id]
+│   ├── auth
+│   │   └── callback
+│   │       └── route.ts
+│   ├── banned
 │   │   └── page.tsx
-│   │
-│   ├── dashboard/
+│   ├── calendar
 │   │   └── page.tsx
-│   │
-│   ├── calendar/
+│   ├── changelog
 │   │   └── page.tsx
-│   │
-│   ├── favorites/
+│   ├── contact
 │   │   └── page.tsx
-│   │
-│   ├── history/
+│   ├── dashboard
 │   │   └── page.tsx
-│   │
-│   ├── settings/
+│   ├── demo
+│   │   ├── applications
+│   │   │   └── page.tsx
+│   │   ├── calendar
+│   │   │   └── page.tsx
+│   │   ├── demosettings
+│   │   │   └── page.tsx
+│   │   ├── favorites
+│   │   │   └── page.tsx
+│   │   ├── history
+│   │   │   └── page.tsx
+│   │   ├── job-assistant
+│   │   │   ├── page.tsx
+│   │   │   └── [id]
+│   │   │       ├── page.tsx
+│   │   │       └── result
+│   │   │           └── page.tsx
 │   │   └── page.tsx
-│   │
-│   ├── contact/
+│   ├── error.tsx
+│   ├── favicon.ico
+│   ├── favorites
 │   │   └── page.tsx
-│   │
-│   ├── login/
-│   │   ├── actions.ts                    # Kirjautumislogiikka (sis. bännitarkistuksen)
+│   ├── globals.css
+│   ├── history
 │   │   └── page.tsx
-│   │
-│   ├── logout/
+│   ├── job-assistant
+│   │   ├── cover-letters
+│   │   │   └── page.tsx
+│   │   ├── page.tsx
+│   │   └── [id]
+│   │       ├── generate
+│   │       │   └── page.tsx
+│   │       ├── page.tsx
+│   │       └── result
+│   │           └── page.tsx
+│   ├── layout.tsx
+│   ├── login
+│   │   ├── actions.ts
 │   │   └── page.tsx
-│   │
-│   ├── privacy/
+│   ├── logout
 │   │   └── page.tsx
-│   │
-│   ├── tos/
+│   ├── not-found.tsx
+│   ├── page.tsx
+│   ├── privacy
 │   │   └── page.tsx
-│   │
-│   └── demo/
-│       ├── page.tsx
-│       ├── applications/
-│       │   └── page.tsx
-│       ├── calendar/
-│       │   └── page.tsx
-│       ├── history/
-│       │   └── page.tsx
-│       └── favorites/
-│           └── page.tsx
-│
-├── components/                           # Jaettavat React-komponentit
-│   │
-│   ├── admin/
+│   ├── settings
+│   │   └── page.tsx
+│   └── tos
+│       └── page.tsx
+├── components
+│   ├── Admin
 │   │   ├── AdminSidebar.tsx
 │   │   ├── LogDetailModal.tsx
-│   │   └── UsersTable.tsx                # Käyttäjähallintataulukko bännin keston valinnalla
-│   │
-│   ├── applications/
-│   │   └── AddAttachment.tsx
-│   │
-│   ├── calendar/
+│   │   ├── UserDetailsModal.tsx
+│   │   └── UsersTable.tsx
+│   ├── AdminCard.tsx
+│   ├── AiCreditsBadge.tsx
+│   ├── applications
+│   │   ├── AddAttachment.tsx
+│   │   ├── ApplicationHistory.tsx
+│   │   ├── ApplicationRow.tsx
+│   │   ├── ApplicationStats.tsx
+│   │   ├── CompanyLogo.tsx
+│   │   └── QuickAddApplication.tsx
+│   ├── calendar
 │   │   ├── AddEventModal.tsx
 │   │   ├── CalendarClient.tsx
 │   │   ├── CalendarView.tsx
 │   │   ├── EventDetailModal.tsx
 │   │   ├── MiniCalendar.tsx
 │   │   └── QuickEvents.tsx
-│   │
-│   ├── dashboard/
+│   ├── dashboard
 │   │   ├── ActivityHeatmap.tsx
 │   │   ├── ApplicationChart.tsx
 │   │   ├── ApplicationTrendChart.tsx
 │   │   ├── ConsistencyCard.tsx
 │   │   ├── DashboardHeader.tsx
+│   │   ├── GhostedCard.tsx
 │   │   ├── ImpactRatingCard.tsx
 │   │   ├── LocationsChart.tsx
 │   │   ├── MapComponent.tsx
 │   │   ├── RecentApplications.tsx
 │   │   ├── StatsCard.tsx
 │   │   └── UpcomingDeadlines.tsx
-│   │
-│   ├── demo/
+│   ├── demo
 │   │   ├── DemoBanner.tsx
+│   │   ├── DemoCompanyLogo.tsx
+│   │   ├── DemoHeader.tsx
+│   │   ├── DemoNotificationsDropdown.tsx
 │   │   └── DemoSidebar.tsx
-│   │
-│   ├── history/
+│   ├── DownloadButton.tsx
+│   ├── favorites
+│   ├── Footer.tsx
+│   ├── Header.tsx
+│   ├── history
 │   │   └── HistoryClient.tsx
-│   │
-│   ├── logout/
+│   ├── job-assistant
+│   │   ├── id
+│   │   │   ├── DocumentItem.tsx
+│   │   │   ├── InfoSidebar.tsx
+│   │   │   ├── JobDescriptionCard.tsx
+│   │   │   ├── JobHeader.tsx
+│   │   │   ├── result
+│   │   │   │   ├── CoverLetterCard.tsx
+│   │   │   │   ├── CoverLetterSkeleton.tsx
+│   │   │   │   ├── DocumentHeader.tsx
+│   │   │   │   ├── ResultHeader.tsx
+│   │   │   │   └── ResultSidebar.tsx
+│   │   │   └── UserDocumentsCard.tsx
+│   │   ├── JobAssistantHeader.tsx
+│   │   ├── JobCard.tsx
+│   │   ├── JobList.tsx
+│   │   └── StepIndicator.tsx
+│   ├── LandingIndexCard.tsx
+│   ├── local-date.tsx
+│   ├── LoginModal.tsx
+│   ├── logout
 │   │   ├── LogoutConfirmModal.tsx
 │   │   └── ModalProvider.tsx
-│   │
-│   ├── settings/
+│   ├── NavBar.tsx
+│   ├── NavBarWait.tsx
+│   ├── NotificationsDropdown.tsx
+│   ├── PageHeader.tsx
+│   ├── settings
 │   │   ├── AvatarUpload.tsx
 │   │   ├── PasswordChangeForm.tsx
 │   │   ├── ProfileDetailsForm.tsx
 │   │   └── SettingsClient.tsx
-│   │
-│   ├── ui/                               # Yleiset UI-komponentit
+│   ├── Sidebar.tsx
+│   ├── SimpleNav.tsx
+│   ├── theme-provider.tsx
+│   ├── ui
+│   │   ├── AppToaster.tsx
 │   │   ├── avatar.tsx
 │   │   ├── badge.tsx
 │   │   ├── button.tsx
 │   │   ├── card.tsx
 │   │   ├── chart.tsx
 │   │   ├── dialog.tsx
+│   │   ├── dropdown-menu.tsx
 │   │   ├── input.tsx
 │   │   ├── progress.tsx
+│   │   ├── select.tsx
 │   │   ├── sheet.tsx
 │   │   ├── skeleton.tsx
 │   │   ├── skeletons.tsx
 │   │   ├── table.tsx
+│   │   ├── tabs.tsx
 │   │   ├── TimerComponent.tsx
-│   │   ├── theme-provider.tsx
 │   │   └── tooltip.tsx
-│   │
-│   ├── Footer.tsx
-│   ├── LandingIndexCard.tsx
-│   ├── LoginModal.tsx
-│   ├── NavBar.tsx
-│   ├── NavBarWait.tsx
-│   ├── Sidebar.tsx
-│   ├── SimpleNav.tsx
-│   ├── DownloadButton.tsx
 │   ├── WaitlistSignup.tsx
-│   └── AppToaster.tsx
-│
-├── lib/                                  # Sovelluslogiikka
+│   └── WelcomeModal.tsx
+├── components.json
+├── eslint.config.mjs
+├── lib
+│   ├── anonymize.ts
+│   ├── applications.tsx
 │   ├── auth-errors.ts
 │   ├── calendar.ts
+│   ├── changelog.ts
 │   ├── demo-data.ts
 │   ├── export-csv.ts
 │   ├── history.ts
 │   ├── logger.ts
+│   ├── middleware.ts
 │   ├── ratelimit.ts
-│   ├── supabase.ts
 │   ├── supabase-admin.ts
-│   └── supabase-server.ts
-│
-├── middleware.ts                         # Reittien suojaus (Auth + Admin)
-│
-├── public/                               # Staattiset tiedostot
-│   ├── logo.svg
-│   ├── favicon.ico
-│   ├── icons/
-│   ├── screenshots/
-│   └── images/
-│
-├── types/                                # TypeScript-tyypit
-│   ├── application.ts
-│   ├── user.ts
-│   ├── history.ts
-│   └── database.ts
-│
-├── hooks/                                # Custom React Hooks
-│   ├── useAuth.ts
-│   ├── useApplications.ts
-│   ├── useDashboard.ts
-│   └── useProfile.ts
-│
-├── utils/                                # Pienet apufunktiot
-│   ├── formatDate.ts
-│   ├── formatSalary.ts
-│   ├── validators.ts
-│   └── constants.ts
-│
-├── package.json
-├── proxy.ts                              # middleware-name-update
-├── tsconfig.json
+│   ├── supabase-server.ts
+│   ├── supabase.ts
+│   └── utils.ts
+├── next-env.d.ts
 ├── next.config.ts
-└── README.md
+├── package-lock.json
+├── package.json
+├── postcss.config.mjs
+├── proxy.ts
+├── public
+│   ├── demo-logos
+│   │   ├── dna.png
+│   │   ├── elisa.png
+│   │   ├── fiskars.png
+│   │   ├── fortum.png
+│   │   ├── futurice.webp
+│   │   ├── gofore.webp
+│   │   ├── kone.png
+│   │   ├── kone.webp
+│   │   ├── neste.png
+│   │   ├── nixu.webp
+│   │   ├── nordea.png
+│   │   ├── opryhma.png
+│   │   ├── reaktor.png
+│   │   ├── relex.png
+│   │   ├── relex.webp
+│   │   ├── relexsolutions.png
+│   │   ├── sok.png
+│   │   ├── supercell.jpg
+│   │   ├── supercell.png
+│   │   ├── telia.png
+│   │   ├── varma.png
+│   │   ├── vincit.png
+│   │   ├── vr.jpg
+│   │   └── wolt.png
+│   ├── fi.svg
+│   ├── file.svg
+│   ├── globe.svg
+│   ├── login-bg.png
+│   ├── next.svg
+│   ├── og-image.png
+│   ├── vercel.svg
+│   └── window.svg
+├── README.md
+├── tsconfig.json
+└── vercel.json
 ```
 
-## Arkkitehtuuriratkaisuja
+### Arkkitehtuuriratkaisut ja tekniset valinnat
 
-- **Row Level Security kaikissa tauluissa** — jokainen taulu (`applications`, `calendar_events`, `application_history`, `profiles`, `deleted_applications_log`) rajaa datan käyttäjäkohtaisesti tietokantatasolla, ei vain sovelluslogiikassa[cite: 3].
+- **Row Level Security kaikissa tauluissa** — jokainen taulu (`applications`, `calendar_events`, `application_history`, `profiles`, `deleted_applications_log`, `contact_messages`) rajaa datan käyttäjäkohtaisesti tietokantatasolla, ei vain sovelluslogiikassa.
+- **AI-kreditjärjestelmän tietokantatuki** — käyttäjien tekoälykreditit (esim. ilmaiset 5 kredittiä rekisteröitymisen yhteydessä) ja niiden kulutus on integroitu tietokantatasolle, ja maksutapahtumat välittyvät turvallisesti Stripe-integraation kautta.
+- **Tietosuojan esikäsittely (Anonymisointi)** — ennen kuin käyttäjän tekstejä lähetetään Google Gemini -tekoälylle saatekirjeiden generointia varten, `lib/anonymize.ts` suodattaa automaattisesti pois henkilötunnukset, sähköpostit, puhelinnumerot ja osoitteet.
 - **Julkisen profiilin bännisynkronointi** — käyttäjän porttikielto (`is_banned`, `banned_until`) tallennetaan suoraan `profiles`-tauluun, jotta tieto on helposti luettavissa käyttöliittymän taulukoissa ja sivunvaihdon yhteydessä.
-- **Vankka sovellustason porttikieltosuojaus** — `proxy.ts` (middleware) tarkistaa jokaisen pyynnön yhteydessä tietokannasta, onko kirjautunut käyttäjä estetty[cite: 3]. Jos bänni on voimassa, käyttäjä ohjataan välittömästi `/banned`-porttikieltosivulle eikä sivun latausta tai API-kutsuja suoriteta[cite: 3].
+- **Vankka sovellustason porttikieltosuojaus** — `proxy.ts` (middleware) tarkistaa jokaisen pyynnön yhteydessä tietokannasta, onko kirjautunut käyttäjä estetty. Jos bänni on voimassa, käyttäjä ohjataan välittömästi `/banned`-porttikieltosivulle eikä sivun latausta tai API-kutsuja suoriteta.
 - **Turvallinen kirjautumisvirta** — `loginAction` suorittaa bännitarkistuksen välittömästi onnistuneen kirjautumisen jälkeen. Jos käyttäjän profiili on estetty, istunto tyhjennetään heti (`signOut`) ja hänet ohjataan bännisivulle ilman, että ulkopuolisille paljastetaan bännin olemassaoloa ennen oikean salasanan syöttämistä.
-- **Erillinen poistoloki** — koska `application_history` on sidottu `applications`-tauluun `cascade`-relaatiolla, poistotapahtumat eivät voisi säilyä samassa taulussa[cite: 3]. `deleted_applications_log` on tarkoituksella irrallinen taulu, joka säilyy vaikka itse hakemus poistetaan[cite: 3].
-- **Server- ja client-Supabase-clientit eriytetty** — `lib/supabase.ts` selaimelle (cookie-pohjainen istunto), `lib/supabase-server.ts` palvelinkomponenteille, `lib/supabase-admin.ts` service role -operaatioille (esim. käyttäjän poisto), jota ei koskaan altisteta selaimelle[cite: 3].
-- **Middleware suojaa reitit ennen renderöintiä** — sekä tavalliset suojatut reitit että admin-reitit tarkistetaan `middleware.ts`:ssä, jolloin kirjautumaton tai oikeudeton käyttäjä ei koskaan näe edes vilaustakaan suojatusta sisällöstä[cite: 3].
-- **Propseihin perustuva demo/tuotanto-jako** — dashboard-komponentit (esim. `LocationsCard`, `ApplicationsChart`) ottavat valinnaisen `demoData`-propin: jos se annetaan, komponentti käyttää sitä eikä kutsu Supabasea ollenkaan[cite: 3]. Sama komponentti palvelee sekä oikeaa sovellusta että kirjautumatonta demoa[cite: 3].
+- **Erillinen poistoloki** — koska `application_history` on sidottu `applications`-tauluun `cascade`-relaatiolla, poistotapahtumat eivät voisi säilyä samassa taulussa. `deleted_applications_log` on tarkoituksella irrallinen taulu, joka säilyy vaikka itse hakemus poistetaan.
+- **Yhteydenottolomakkeen tietoturva** — yhteydenotot suojataan Upstash Rate Limiting -spämminestolla, piilotetulla honeypot-kentällä sekä kahden kerroksen varmistuksella (tallennus Supabaseen ja sähköpostin lähetys verifioidulta `duunify.com`-domainilta Resendin kautta).
+- **Server- ja client-Supabase-clientit eriytetty** — `lib/supabase.ts` selaimelle (cookie-pohjainen istunto), `lib/supabase-server.ts` palvelinkomponenteille, `lib/supabase-admin.ts` service role -operaatioille (esim. käyttäjän poisto), jota ei koskaan altisteta selaimelle.
+- **Middleware suojaa reitit ennen renderöintiä** — sekä tavalliset suojatut reitit että admin-reitit tarkistetaan `middleware.ts`-tiedostossa, jolloin kirjautumaton tai oikeudeton käyttäjä ei koskaan näe edes vilaustakaan suojatusta sisällöstä.
+- **Propseihin perustuva demo/tuotanto-jako** — dashboard-komponentit (esim. `LocationsCard`, `ApplicationsChart`) ottavat valinnaisen `demoData`-propin: jos se annetaan, komponentti käyttää sitä eikä kutsu Supabasea ollenkaan. Sama komponentti palvelee sekä oikeaa sovellusta että kirjautumatonta demoa.
 
-## Kieli
-
-Käyttöliittymä on kokonaan suomeksi, kohdeyleisönä suomalaiset työnhakijat ja suomalaiset työpaikkailmoitussivustot[cite: 3].
+### Kieli
+Käyttöliittymä on kokonaan suomeksi, kohdeyleisönä suomalaiset työnhakijat ja suomalaiset työpaikkailmoitussivustot.
