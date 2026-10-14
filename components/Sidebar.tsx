@@ -50,22 +50,36 @@ export default function Sidebar() {
   useEffect(() => {
     setMounted(true);
     const saved = localStorage.getItem("sidebar");
-    if (saved === "collapsed") setCollapsed(true);
-
+    
     const isDark = document.documentElement.classList.contains("dark");
     setIsDarkMode(isDark);
 
-    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    const handleResize = () => {
+      const width = window.innerWidth;
+      const mobile = width < 1024;
+      setIsMobile(mobile);
+
+      if (!mobile) {
+        if (width < 1280) {
+          setCollapsed(true);
+        } else if (saved === "collapsed") {
+          setCollapsed(true);
+        } else {
+          setCollapsed(false);
+        }
+      }
+    };
+
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   useEffect(() => {
-    if (mounted) {
+    if (mounted && !isMobile && window.innerWidth >= 1280) {
       localStorage.setItem("sidebar", collapsed ? "collapsed" : "expanded");
     }
-  }, [collapsed, mounted]);
+  }, [collapsed, mounted, isMobile]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
@@ -91,7 +105,7 @@ export default function Sidebar() {
 
   if (!mounted)
     return (
-      <div className="w-20 min-h-screen bg-white/80 dark:bg-slate-900/80 border-r border-slate-200 dark:border-slate-700" />
+      <div className="w-20 min-h-screen bg-white dark:bg-[#0d0f18] border-r border-slate-200 dark:border-slate-800/80" />
     );
 
   const displayName =
@@ -99,13 +113,13 @@ export default function Sidebar() {
   const displayEmail = user?.email || "";
   const avatarUrl = user?.user_metadata?.avatar_url || "";
 
-  // --- MOBIILI: kiinteä, näyttävä glassmorphism-alanavigaatio ---
+  // --- MOBIILI: kiinteä, näyttävä glassmorphism-alanavigaatio parannetulla kontrastilla ---
   if (isMobile) {
     const primaryItems = NAV_ITEMS.slice(0, 4);
 
     return (
       <>
-        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-[#12141c]/90 backdrop-blur-2xl border-t border-slate-200/80 dark:border-slate-800/80 pb-[env(safe-area-inset-bottom)] shadow-2xl">
+        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#131622]/90 backdrop-blur-2xl border-t border-slate-200 dark:border-slate-800/80 pb-[env(safe-area-inset-bottom)] shadow-2xl">
           <div className="grid grid-cols-5 h-16 px-2">
             {primaryItems.map((item) => {
               const active =
@@ -118,7 +132,7 @@ export default function Sidebar() {
                   className={`relative flex flex-col items-center justify-center gap-1 py-1.5 transition-colors duration-300 ${
                     active
                       ? "text-white"
-                      : "text-slate-400 hover:text-slate-200 dark:hover:text-slate-100"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
                   }`}
                 >
                   {active && (
@@ -134,8 +148,8 @@ export default function Sidebar() {
                     />
                   )}
 
-                  <item.icon size={20} className={active ? "text-white" : "text-slate-400"} />
-                  <span className={`text-[10px] font-medium leading-none ${active ? "text-white font-semibold" : "text-slate-400"}`}>
+                  <item.icon size={20} className={active ? "text-white" : "text-slate-600 dark:text-slate-400"} />
+                  <span className={`text-[10px] font-medium leading-none ${active ? "text-white font-semibold" : "text-slate-600 dark:text-slate-400"}`}>
                     {item.label}
                   </span>
                 </Link>
@@ -144,7 +158,7 @@ export default function Sidebar() {
 
             <button
               onClick={() => setShowMore(true)}
-              className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-slate-200 dark:hover:text-slate-100 transition"
+              className="flex flex-col items-center justify-center gap-1 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition cursor-pointer"
             >
               <MoreHorizontal size={20} />
               <span className="text-[10px] font-medium leading-none">
@@ -162,8 +176,7 @@ export default function Sidebar() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-50 flex items-end"
-              style={{ background: "rgba(13, 11, 38, 0.6)" }}
+              className="fixed inset-0 z-50 flex items-end bg-slate-950/60 backdrop-blur-sm"
               onClick={() => setShowMore(false)}
             >
               <motion.div
@@ -171,7 +184,7 @@ export default function Sidebar() {
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                className="w-full bg-white dark:bg-[#111827] rounded-t-3xl p-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] border-t border-slate-200 dark:border-slate-800 max-h-[85vh] overflow-y-auto shadow-2xl"
+                className="w-full bg-white dark:bg-[#131622] rounded-t-3xl p-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] border-t border-slate-200 dark:border-slate-800/80 max-h-[85vh] overflow-y-auto shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between mb-4">
@@ -180,42 +193,40 @@ export default function Sidebar() {
                   </p>
                   <button
                     onClick={() => setShowMore(false)}
-                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500"
+                    className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-pointer"
                   >
                     <X size={18} />
                   </button>
                 </div>
 
-                {/* Ylempi grid-osio: Suosikit ja Toimintaloki rinnakkain */}
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   <Link
                     href="/calendar"
-                    className="flex items-center gap-2.5 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition"
+                    className="flex items-center gap-2.5 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-slate-50 dark:bg-[#181b2a]/40 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-300 transition"
                     onClick={() => setShowMore(false)}
                   >
-                    <Calendar size={18} className="text-slate-500 dark:text-slate-400 shrink-0" />
+                    <Calendar size={18} className="text-slate-600 dark:text-slate-400 shrink-0" />
                     <span className="text-sm font-medium">Kalenteri</span>
                   </Link>
 
                   <Link
                     href="/history"
-                    className="flex items-center gap-2.5 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition"
+                    className="flex items-center gap-2.5 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-slate-50 dark:bg-[#181b2a]/40 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-300 transition"
                     onClick={() => setShowMore(false)}
                   >
-                    <SquareActivity size={18} className="text-slate-500 dark:text-slate-400 shrink-0" />
+                    <SquareActivity size={18} className="text-slate-600 dark:text-slate-400 shrink-0" />
                     <span className="text-sm font-medium">Toimintaloki</span>
                   </Link>
                 </div>
 
-                {/* Alemmat valinnat normaalisti listana */}
-                <div className="space-y-1 mb-4">
+                <div className="space-y-1.5 mb-4">
                   <Link
                     href="/settings#pro"
-                    className="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#EEF2FF] dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400"
+                    className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 font-semibold"
                     onClick={() => setShowMore(false)}
                   >
                     <Sparkles size={18} />
-                    <span className="font-semibold text-sm">Duunify Pro</span>
+                    <span className="text-sm">Duunify Pro</span>
                   </Link>
 
                   <button
@@ -223,9 +234,9 @@ export default function Sidebar() {
                       toggleDarkMode();
                       setShowMore(false);
                     }}
-                    className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-left"
+                    className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-slate-800 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 text-left cursor-pointer"
                   >
-                    {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+                    {isDarkMode ? <Moon size={18} className="text-indigo-400" /> : <Sun size={18} className="text-amber-500" />}
                     <span className="text-sm font-medium">
                       {isDarkMode ? "Kevyt tila" : "Tumma tila"}
                     </span>
@@ -233,7 +244,7 @@ export default function Sidebar() {
 
                   <Link
                     href="/settings"
-                    className="flex items-center gap-3 px-3 py-3 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                    className="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-slate-800 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50"
                     onClick={() => setShowMore(false)}
                   >
                     <Settings size={18} />
@@ -241,24 +252,24 @@ export default function Sidebar() {
                   </Link>
                 </div>
 
-                <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 mb-2">
+                <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-[#181b2a]/60 border border-slate-200 dark:border-slate-800/60 mb-2">
                   {avatarUrl ? (
                     <img
                       src={avatarUrl}
                       alt="Avatar"
-                      className="w-[36px] h-[36px] rounded-full object-cover shrink-0"
+                      className="w-10 h-10 rounded-full object-cover shrink-0"
                     />
                   ) : (
                     <UserCircle2
-                      size={36}
-                      className="text-slate-400 dark:text-slate-500 shrink-0"
+                      size={40}
+                      className="text-slate-500 dark:text-slate-400 shrink-0"
                     />
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-slate-900 dark:text-slate-200 truncate text-sm">
+                    <p className="font-semibold text-slate-900 dark:text-slate-200 truncate text-sm">
                       {displayName}
                     </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                    <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
                       {displayEmail}
                     </p>
                   </div>
@@ -269,7 +280,7 @@ export default function Sidebar() {
                         showLogout(displayName);
                       }}
                       title="Kirjaudu ulos"
-                      className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition shrink-0"
+                      className="p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition shrink-0 cursor-pointer"
                     >
                       <LogOut size={18} />
                     </button>
@@ -285,29 +296,30 @@ export default function Sidebar() {
     );
   }
 
-  // --- TYÖPÖYTÄ: supistettava sivupalkki ---
+  // --- TYÖPÖYTÄ: supistettava ammattimainen sivupalkki ---
   const sidebarCollapsed = collapsed;
   const isSettingsActive = pathname === "/settings";
 
   return (
     <aside
-      className={`transition-all duration-300 ${sidebarCollapsed ? "w-20" : "w-64"} min-h-screen sticky top-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-r border-slate-200 dark:border-slate-700 flex flex-col`}
+      className={`transition-all duration-300 ${sidebarCollapsed ? "w-20" : "w-64"} min-h-screen sticky top-0 bg-white dark:bg-[#0d0f18] border-r border-slate-200 dark:border-slate-800/80 flex flex-col select-none`}
     >
       {/* HEADER */}
-      <div className="relative h-20 flex items-center px-5 border-b border-slate-200 dark:border-slate-700">
+      <div className="relative h-20 flex items-center px-5 border-b border-slate-100 dark:border-slate-800/60">
         {!sidebarCollapsed && (
-          <div className="ml-3">
-            <h1 className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-violet-500 bg-clip-text text-transparent">
+          <div className="ml-2">
+            <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 bg-clip-text text-transparent">
               Duunify.
             </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-500 mt-0.5">
               Työhakemusten hallinta
             </p>
           </div>
         )}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="absolute right-5 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-500 dark:text-slate-400"
+          className={`absolute ${sidebarCollapsed ? "right-1/2 translate-x-1/2" : "right-4"} top-1/2 -translate-y-1/2 p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/80 transition text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer`}
+          title={sidebarCollapsed ? "Laajenna sivupalkki" : "Supista sivupalkki"}
         >
           {collapsed ? (
             <PanelLeftOpen size={18} />
@@ -318,11 +330,11 @@ export default function Sidebar() {
       </div>
 
       {/* NAVIGATION */}
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-4 space-y-1.5">
         {NAV_ITEMS.map((item) => (
           <SidebarItem
             key={item.href}
-            icon={<item.icon size={18} />}
+            icon={<item.icon size={19} />}
             label={item.label}
             href={item.href}
             collapsed={sidebarCollapsed}
@@ -334,22 +346,26 @@ export default function Sidebar() {
       <div className="px-4 pb-4 flex flex-col gap-2">
         <button
           onClick={toggleDarkMode}
-          title={isDarkMode ? "Kevyt tila" : "Tumma tila"}
-          className={`w-full flex items-center ${sidebarCollapsed ? "justify-center" : "justify-between"} px-4 py-3 rounded-xl transition text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 text-left`}
+          title={isDarkMode ? "Vaihda vaaleaan tilaan" : "Vaihda tummaan tilaan"}
+          className={`w-full flex items-center ${sidebarCollapsed ? "justify-center" : "justify-between"} px-3.5 py-3 rounded-2xl transition text-slate-700 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#131622] hover:text-slate-900 dark:hover:text-slate-100 text-left border border-transparent hover:border-slate-200 dark:hover:border-slate-800/80 cursor-pointer`}
         >
           <div className="flex items-center gap-3">
-            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-            {!sidebarCollapsed && <span>Tumma tila</span>}
+            {isDarkMode ? (
+              <Moon size={18} className="text-indigo-400 shrink-0" />
+            ) : (
+              <Sun size={18} className="text-amber-500 shrink-0" />
+            )}
+            {!sidebarCollapsed && <span className="text-sm font-medium">Tumma tila</span>}
           </div>
 
           {!sidebarCollapsed && (
             <div 
-              className={`w-8 h-4 rounded-full p-0.5 transition-colors duration-200 ${
-                isDarkMode ? "bg-indigo-600" : "bg-slate-300 dark:bg-slate-700"
+              className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ${
+                isDarkMode ? "bg-indigo-600" : "bg-slate-300 dark:bg-slate-800"
               }`}
             >
               <div 
-                className={`w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+                className={`w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-200 ${
                   isDarkMode ? "translate-x-4" : "translate-x-0"
                 }`}
               />
@@ -360,43 +376,43 @@ export default function Sidebar() {
         <Link
           href="/settings"
           title="Asetukset"
-          className={`w-full flex items-center ${sidebarCollapsed ? "justify-center" : "gap-3"} px-4 py-3 rounded-xl transition ${
+          className={`w-full flex items-center ${sidebarCollapsed ? "justify-center" : "gap-3"} px-3.5 py-3 rounded-2xl transition border ${
             isSettingsActive
-              ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-medium"
-              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60"
+              ? "bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/25 font-semibold"
+              : "text-slate-700 dark:text-slate-400 bg-transparent border-transparent hover:bg-slate-100 dark:hover:bg-[#131622] hover:text-slate-900 dark:hover:text-slate-100 dark:hover:border-slate-800/80"
           }`}
         >
           <Settings size={18} />
-          {!sidebarCollapsed && <span>Asetukset</span>}
+          {!sidebarCollapsed && <span className="text-sm font-medium">Asetukset</span>}
         </Link>
 
         <AdminCard collapsed={collapsed} />
       </div>
 
       {/* USER & LOGOUT */}
-      <div className="p-4 border-t border-slate-200 dark:border-slate-700">
+      <div className="p-4 border-t border-slate-100 dark:border-slate-800/60">
         <div
-          className={`flex items-center ${sidebarCollapsed ? "justify-center" : "gap-3"} p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60`}
+          className={`flex items-center ${sidebarCollapsed ? "justify-center" : "gap-3"} p-3 rounded-2xl bg-slate-50 dark:bg-[#131622] border border-slate-200 dark:border-slate-800/80 shadow-sm`}
         >
           {avatarUrl ? (
             <img
               src={avatarUrl}
-              className="w-[42px] h-[42px] rounded-full object-cover shrink-0"
+              className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-indigo-500/20"
               alt="Avatar"
             />
           ) : (
             <UserCircle2
-              size={42}
-              className="text-slate-400 dark:text-slate-500 shrink-0"
+              size={40}
+              className="text-slate-500 dark:text-slate-400 shrink-0"
             />
           )}
 
           {!sidebarCollapsed && (
             <div className="min-w-0 flex-1">
-              <p className="font-medium text-slate-900 dark:text-slate-200 truncate">
+              <p className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">
                 {displayName}
               </p>
-              <p className="text-sm text-slate-500 dark:text-slate-400 truncate">
+              <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
                 {displayEmail}
               </p>
             </div>
@@ -406,7 +422,7 @@ export default function Sidebar() {
             <button
               onClick={() => showLogout(displayName)}
               title="Kirjaudu ulos"
-              className="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-500/10 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition shrink-0"
+              className="p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition shrink-0 cursor-pointer"
             >
               <LogOut size={18} />
             </button>
@@ -435,14 +451,25 @@ function SidebarItem({
   return (
     <Link
       href={href}
-      className={`w-full flex items-center ${collapsed ? "justify-center" : "gap-3"} px-4 py-3 rounded-xl transition ${
+      title={collapsed ? label : undefined}
+      className={`relative w-full flex items-center ${collapsed ? "justify-center" : "gap-3"} px-3.5 py-3 rounded-2xl transition-colors cursor-pointer ${
         active
-          ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-medium"
-          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60"
+          ? "text-white font-semibold"
+          : "text-slate-700 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#131622] hover:text-slate-900 dark:hover:text-slate-100"
       }`}
     >
-      {icon}
-      {!collapsed && <span>{label}</span>}
+      {active && (
+        <motion.div
+          layoutId="sidebar-desktop-active-pill"
+          className="absolute inset-0 rounded-2xl -z-10 shadow-md shadow-indigo-600/25"
+          style={{ background: "linear-gradient(to right, #6D67F2, #7C3AED)" }}
+          transition={{ type: "spring", stiffness: 400, damping: 30 }}
+        />
+      )}
+      <span className={active ? "text-white" : "text-slate-600 dark:text-slate-400"}>
+        {icon}
+      </span>
+      {!collapsed && <span className="text-sm">{label}</span>}
     </Link>
   );
 }
