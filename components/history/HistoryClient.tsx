@@ -382,12 +382,12 @@ export default function HistoryClient({ items }: { items: HistoryItem[] }) {
                           </span>
                         </div>
 
-                        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 break-words">
-                          {meta.label}
+                        <p className="text-xs sm:text-sm mt-1 break-words">
+                          <span className={meta.text}>{meta.label}</span>
                           {item.event === "status_changed" &&
                             item.oldStatus &&
                             item.newStatus && (
-                              <span className="block sm:inline mt-0.5 sm:mt-0">
+                              <span className="block sm:inline mt-0.5 sm:mt-0 text-slate-500 dark:text-slate-400">
                                 {" "}
                                 <span className="text-slate-400 dark:text-slate-500">
                                   {item.oldStatus}
