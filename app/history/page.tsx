@@ -22,13 +22,13 @@ export default async function HistoryPage() {
   const items = await fetchHistoryItems();
 
   return (
-    <div className="flex min-h-screen bg-slate-100 dark:bg-[#0d0f18] bg-gradient-to-br from-violet-50 via-pink-50 to-sky-50 dark:from-[#0d0f18] dark:via-[#111322] dark:to-[#0a0c14] text-slate-900 dark:text-slate-50 transition-colors duration-200">
+    <div className="flex min-h-screen w-full bg-slate-100 dark:bg-[#0d0f18] bg-gradient-to-br from-violet-50 via-pink-50 to-sky-50 dark:from-[#0d0f18] dark:via-[#111322] dark:to-[#0a0c14] text-slate-900 dark:text-slate-50 transition-colors duration-200 overflow-x-hidden">
       <Sidebar />
 
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
+      <div className="flex-1 flex flex-col min-w-0 w-full">
         <Header />
         
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 mb-16 max-w-[1600px] w-full mx-auto flex flex-col gap-6">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-28 lg:pb-12 max-w-[1600px] w-full mx-auto flex flex-col gap-6 box-border">
           <PageHero
             icon={SquareActivity}
             title="Toimintaloki"
