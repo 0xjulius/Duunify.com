@@ -15,7 +15,6 @@ import {
   deleteCalendarEvent,
   toggleCalendarEventCompleted,
 } from "@/lib/calendar";
-import { Calendar } from "lucide-react";
 
 export default function CalendarClient({
   initialApplications,
@@ -64,23 +63,12 @@ export default function CalendarClient({
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-6 text-slate-900 dark:text-slate-50 transition-colors duration-200">
-      {/* Otsikkoalue */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-100 dark:border-slate-900">
-        <div className="flex items-center gap-4">
-          <div className="bg-gradient-to-br from-indigo-200 to-violet-600 p-3.5 rounded-2xl shadow-md h-13 w-13 shrink-0">
-            <Calendar className="h-6 w-6 text-white" />  
-          </div>
-          <div className="flex flex-col">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Kalenterinäkymä</h2>
-            <p className="mt-1 text-slate-500 dark:text-slate-400 text-sm xl:text-md font-medium">
-              Seuraa hakuprosessiesi tärkeitä päivämääriä.
-            </p>
-          </div>
-        </div>
+    <div className="w-full max-w-[1600px] mx-auto space-y-6 text-slate-900 dark:text-slate-50 transition-colors duration-200">
+      {/* Toimintopalkki */}
+      <div className="flex justify-end">
         <button
           onClick={() => setShowAdd(true)}
-          className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white font-medium text-sm px-4 py-2 rounded-xl transition-colors w-full sm:w-auto"
+          className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white font-semibold text-sm px-5 py-2.5 rounded-2xl transition-all shadow-sm shadow-indigo-600/25 cursor-pointer"
         >
           + Lisää tapahtuma
         </button>
@@ -89,7 +77,7 @@ export default function CalendarClient({
       {/* PÄÄASSETTELU */}
       <div className="flex flex-col lg:flex-row gap-6 items-start">
         {/* VASEN REUNA / YLÄOSA: Pääkalenteri */}
-        <div className="w-full lg:flex-1 bg-white dark:bg-slate-900 p-4 md:p-6 rounded-2xl border border-slate-100 dark:border-slate-800/80 shadow-sm overflow-hidden transition-colors">
+        <div className="w-full lg:flex-1 bg-white dark:bg-[#131622] p-4 md:p-6 rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-sm overflow-hidden transition-colors">
           <CalendarView
             events={events}
             onSelectEvent={(event: UnifiedEvent) => setSelectedEvent(event)}
@@ -100,7 +88,7 @@ export default function CalendarClient({
         {/* OIKEA REUNA / ALAOSA: Tulevat tapahtumat & Apukalenterit */}
         <div className="w-full lg:w-80 flex flex-col gap-6">
           {/* Minikalenteri */}
-          <div className="hidden lg:block bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 shadow-sm transition-colors">
+          <div className="hidden lg:block bg-white dark:bg-[#131622] p-4 rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-sm transition-colors">
             <MiniCalendar
               events={events}
               onSelectDate={(date: Date) => setFocusDate(date)}
@@ -108,7 +96,7 @@ export default function CalendarClient({
           </div>
 
           {/* Tulevat tapahtumat -lista */}
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 shadow-sm w-full transition-colors">
+          <div className="bg-white dark:bg-[#131622] p-4 rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-sm w-full transition-colors">
             <QuickEvents
               events={events}
               onSelectEvent={(event: UnifiedEvent) => setSelectedEvent(event)}

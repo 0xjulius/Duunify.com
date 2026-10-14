@@ -14,6 +14,7 @@ import ApplicationRow from "@/components/applications/ApplicationRow";
 import ApplicationStats from "@/components/applications/ApplicationStats";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
+import PageHero from "@/components/PageHero";
 import { Briefcase, Filter, LayoutGrid, List as ListIcon } from "lucide-react";
 
 // Shadcn UI Select -tuonnit
@@ -108,34 +109,21 @@ export default function Home() {
   });
 
   return (
-    <main className="min-h-screen flex bg-slate-100 dark:bg-[#12141c]">
+    <main className="min-h-screen flex bg-slate-100 dark:bg-[#0d0f18] bg-gradient-to-br from-violet-50 via-pink-50 to-sky-50 dark:from-[#0d0f18] dark:via-[#111322] dark:to-[#0a0c14]">
       <Sidebar />
 
       {/* Oikea puoli: hoidetaan vieritys tässä elementissä niin Header rullaa pois */}
       <div className="flex-1 h-screen overflow-y-auto min-w-0">
         <Header />
 
-        {/* KORJAUS 1: p-8 muutettu responsiivisemmaksi (p-3 sm:p-5 md:p-8) ja gap pienemmäksi mobiilissa */}
         <div className="p-3 sm:p-5 md:p-8 max-w-[1600px] mx-auto flex flex-col gap-6 md:gap-10">
           {/* HEADER */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <div className="flex items-center gap-3">
-                <div className="bg-gradient-to-br from-indigo-200 to-violet-600 dark:from-indigo-500/20 dark:to-violet-600/20 p-3 rounded-xl">
-                  <Briefcase className="h-6 w-6 text-white dark:text-indigo-400" />
-                </div>
-                <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
-                  Työpaikat ja hakemukset
-                </h1>
-              </div>
-
-              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-3 ml-2 sm:ml-5 md:ml-[37px]">
-                Täällä voit lisätä, hakea, tallentaa, poistaa tai muuttaa
-                työhakemuksiesi, tai ilmoitusten tilaa.
-              </p>
-            </div>
-          </div>
-
+          <PageHero
+            icon={Briefcase}
+            title="Työpaikat ja hakemukset"
+            subtitle="Hallitse ja seuraa työnhakusi etenemistä"
+            description="Täällä voit lisätä, hakea, tallentaa, poistaa tai muuttaa työhakemuksiesi ja ilmoituksiesi tilaa."
+          />
           {/* TILASTOT */}
           <ApplicationStats applications={applications} loading={loading} />
 
@@ -163,21 +151,21 @@ export default function Home() {
                   placeholder="Hae yritystä tai tehtävää..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-4 pl-12 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
+                  className="w-full bg-white dark:bg-[#131622] border border-slate-200 dark:border-slate-800/80 p-4 pl-12 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 transition"
                 />
               </div>
 
               {/* Status-suodatin */}
               <div className="w-full sm:w-[220px]">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="!h-[58px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500">
+                  <SelectTrigger className="!h-[58px] bg-white dark:bg-[#131622] border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500">
                     <div className="flex items-center gap-2 truncate">
                       <Filter className="h-4 w-4 text-slate-400 dark:text-slate-500 shrink-0" />
                       <SelectValue placeholder="Suodata tila..." />
                     </div>
                   </SelectTrigger>
 
-                  <SelectContent className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 dark:text-slate-100">
+                  <SelectContent className="bg-white dark:bg-[#131622] border border-slate-200 dark:border-slate-800/80 dark:text-slate-100 rounded-2xl shadow-xl">
                     <SelectItem value="all">Kaikki tilat</SelectItem>
                     <SelectItem value="haettu">Haettu</SelectItem>
                     <SelectItem value="haastattelu">Haastattelu</SelectItem>
@@ -191,7 +179,7 @@ export default function Home() {
 
             <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
               {/* NÄKYMÄN VAIHTOPAINIKKEET */}
-              <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-1 rounded-2xl shadow-sm">
+              <div className="flex bg-white dark:bg-[#131622] border border-slate-200 dark:border-slate-800/80 p-1 rounded-2xl shadow-sm">
                 <button
                   onClick={() => setViewMode("grid")}
                   aria-label="Korttinäkymä"
@@ -216,13 +204,13 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* Lisää-painike - KORJAUS: px-22 typografia muutettu täyden leveyden tueksi */}
+              {/* Lisää-painike */}
               <button
                 onClick={() => setShowForm(!showForm)}
                 className={`w-full sm:w-auto px-6 py-4 rounded-2xl font-semibold transition-all cursor-pointer whitespace-nowrap shadow-sm ${
                   showForm
                     ? "bg-red-500 text-white hover:bg-red-600 dark:bg-red-500/20 dark:text-red-400 dark:border dark:border-red-500/30 dark:hover:bg-red-500/30"
-                    : "bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700"
+                    : "bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 shadow-indigo-600/20"
                 }`}
               >
                 {showForm ? "✕ Sulje" : "+ Lisää työpaikka"}
@@ -254,7 +242,7 @@ export default function Home() {
               {[...Array(6)].map((_, i) => (
                 <div
                   key={i}
-                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl p-6 shadow-sm animate-pulse flex flex-col gap-4"
+                  className="bg-white dark:bg-[#131622] border border-slate-200 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm animate-pulse flex flex-col gap-4"
                 >
                   <div className="h-6 w-3/4 bg-slate-200 dark:bg-slate-800 rounded-lg" />
                   <div className="h-4 w-1/2 bg-slate-100 dark:bg-slate-800/60 rounded-lg" />
@@ -273,12 +261,11 @@ export default function Home() {
                 ))}
               </div>
             ) : (
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-sm overflow-hidden">
+              <div className="bg-white dark:bg-[#131622] border border-slate-200 dark:border-slate-800/80 rounded-3xl shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                  {/* KORJAUS 2: table-fixed xl:table-auto pakottaa taulukon mobiilissa pysymään näytön rajoissa */}
                   <table className="w-full text-left border-collapse table-fixed xl:table-auto">
                     <thead className="hidden xl:table-header-group">
-                      <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      <tr className="border-b border-slate-200 dark:border-slate-800/80 bg-slate-50 dark:bg-[#181b2a]/50 text-xs font-semibold text-slate-500 dark:text-slate-400">
                         <th className="p-4 pl-6">Tehtävä & Yritys</th>
                         <th className="p-4">Tila</th>
                         <th className="p-4">Sijainti</th>
@@ -286,7 +273,7 @@ export default function Home() {
                         <th className="p-4 pr-6 text-right">Toiminnot</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800/80 text-sm">
                       {filtered.map((app) => (
                         <ApplicationRow
                           key={app.id}
@@ -302,7 +289,7 @@ export default function Home() {
               </div>
             )
           ) : (
-            <div className="col-span-full py-20 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700">
+            <div className="col-span-full py-20 text-center bg-white dark:bg-[#131622] rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-sm">
               <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-50 mb-2">
                 {search || statusFilter !== "all"
                   ? "Ei hakemuksia valituilla ehdoilla"
@@ -316,7 +303,7 @@ export default function Home() {
               {!search && statusFilter === "all" && (
                 <button
                   onClick={() => setShowForm(true)}
-                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white rounded-xl font-medium"
+                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white rounded-xl font-medium shadow-sm shadow-indigo-600/25"
                 >
                   + Lisää ensimmäinen hakemus
                 </button>

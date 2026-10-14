@@ -99,14 +99,14 @@ export default function Sidebar() {
   const displayEmail = user?.email || "";
   const avatarUrl = user?.user_metadata?.avatar_url || "";
 
-  // --- MOBIILI: kiinteä, koko leveyden alanavigaatio ---
+  // --- MOBIILI: kiinteä, näyttävä glassmorphism-alanavigaatio ---
   if (isMobile) {
     const primaryItems = NAV_ITEMS.slice(0, 4);
 
     return (
       <>
-        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-700 pb-[env(safe-area-inset-bottom)]">
-          <div className="grid grid-cols-5 h-16">
+        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-[#12141c]/90 backdrop-blur-2xl border-t border-slate-200/80 dark:border-slate-800/80 pb-[env(safe-area-inset-bottom)] shadow-2xl">
+          <div className="grid grid-cols-5 h-16 px-2">
             {primaryItems.map((item) => {
               const active =
                 pathname === item.href ||
@@ -115,26 +115,27 @@ export default function Sidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`relative flex flex-col items-center justify-center gap-1 py-2 px-3 transition-colors duration-300 ${
+                  className={`relative flex flex-col items-center justify-center gap-1 py-1.5 transition-colors duration-300 ${
                     active
-                      ? "text-indigo-800 dark:text-indigo-400"
-                      : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                      ? "text-white"
+                      : "text-slate-400 hover:text-slate-200 dark:hover:text-slate-100"
                   }`}
                 >
                   {active && (
                     <motion.div
                       layoutId="active-nav-pill"
-                      className="absolute inset-0 bg-indigo-100 dark:bg-indigo-500/10 rounded-4xl -z-10"
+                      className="absolute inset-x-1 inset-y-1.5 rounded-2xl -z-10 shadow-lg shadow-indigo-500/30"
+                      style={{ background: "linear-gradient(135deg, #6D67F2, #5750E0)" }}
                       transition={{
                         type: "spring",
-                        stiffness: 380,
+                        stiffness: 400,
                         damping: 30,
                       }}
                     />
                   )}
 
-                  <item.icon size={20} />
-                  <span className="text-[10px] font-medium leading-none">
+                  <item.icon size={20} className={active ? "text-white" : "text-slate-400"} />
+                  <span className={`text-[10px] font-medium leading-none ${active ? "text-white font-semibold" : "text-slate-400"}`}>
                     {item.label}
                   </span>
                 </Link>
@@ -143,7 +144,7 @@ export default function Sidebar() {
 
             <button
               onClick={() => setShowMore(true)}
-              className="flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+              className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-slate-200 dark:hover:text-slate-100 transition"
             >
               <MoreHorizontal size={20} />
               <span className="text-[10px] font-medium leading-none">
@@ -162,7 +163,7 @@ export default function Sidebar() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               className="fixed inset-0 z-50 flex items-end"
-              style={{ background: "rgba(13, 11, 38, 0.5)" }}
+              style={{ background: "rgba(13, 11, 38, 0.6)" }}
               onClick={() => setShowMore(false)}
             >
               <motion.div
@@ -170,7 +171,7 @@ export default function Sidebar() {
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                className="w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] border-t border-slate-200 dark:border-slate-700 max-h-[85vh] overflow-y-auto"
+                className="w-full bg-white dark:bg-[#111827] rounded-t-3xl p-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] border-t border-slate-200 dark:border-slate-800 max-h-[85vh] overflow-y-auto shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between mb-4">

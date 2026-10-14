@@ -3,9 +3,11 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Sparkles } from "lucide-react";
+import BuyCreditsModal from "./BuyCreditsModal";
 
 export default function AiCreditsBadge() {
   const [aiCredits, setAiCredits] = useState<number | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     async function fetchCredits() {
@@ -49,39 +51,49 @@ export default function AiCreditsBadge() {
   const isOutOfCredits = aiCredits !== null && aiCredits <= 0;
 
   return (
-    <div className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 transition-colors">
-      {/* Käytetään AINA Duunify AI -tähtiä ikonina */}
-      <Sparkles
-        size={15}
-        className={`shrink-0 ${
-          isOutOfCredits
-            ? "text-indigo-400 opacity-70"
-            : "text-indigo-600 dark:text-indigo-400"
-        }`}
-      />
+    <>
+      <div 
+        onClick={() => setShowModal(true)}
+        className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 rounded-2xl bg-white dark:bg-[#131622] border border-slate-200 dark:border-slate-800/80 text-sm font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer hover:border-indigo-500 dark:hover:border-indigo-500 shadow-sm"
+        title="Klikkaa hankkiaksesi lisää krediittejä"
+      >
+        <Sparkles
+          size={15}
+          className={`shrink-0 ${
+            isOutOfCredits
+              ? "text-indigo-400 opacity-70"
+              : "text-indigo-600 dark:text-indigo-400"
+          }`}
+        />
 
-      <span>
-        {aiCredits !== null ? (
-          <>
-            <strong
-              className={`font-bold ${
-                isOutOfCredits
-                  ? "text-slate-400 dark:text-slate-500 text-md"
-                  : "text-slate-900 dark:text-slate-100 text-md"
-              }`}
-            >
-              {aiCredits}
-            </strong>{" "}
-            {/* Mobiilissa tiivis 'kr', tietokoneella koko teksti */}
-            <span className="inline sm:hidden"></span>
-            <span className="hidden sm:inline">
-              {aiCredits === 1 ? "AI-krediitti" : "AI-krediittiä"}
-            </span>
-          </>
-        ) : (
-          "..."
-        )}
-      </span>
-    </div>
+        <span>
+          {aiCredits !== null ? (
+            <>
+              <strong
+                className={`font-bold ${
+                  isOutOfCredits
+                    ? "text-slate-400 dark:text-slate-500 text-md"
+                    : "text-slate-900 dark:text-slate-100 text-md"
+                }`}
+              >
+                {aiCredits}
+              </strong>{" "}
+              <span className="inline sm:hidden"></span>
+              <span className="hidden sm:inline">
+                {aiCredits === 1 ? "AI-krediitti" : "AI-krediittiä"}
+              </span>
+            </>
+          ) : (
+            "..."
+          )}
+        </span>
+      </div>
+
+      <BuyCreditsModal 
+        isOpen={showModal} 
+        onClose={() => setShowModal(false)} 
+        credits={aiCredits}
+      />
+    </>
   );
 }

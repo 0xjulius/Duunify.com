@@ -10,6 +10,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import NotificationsModal from "./NotificationsModal";
 
 export interface NotificationItem {
   id: string;
@@ -54,6 +55,7 @@ function formatTimestamp(dateString: string) {
 export default function NotificationsDropdown() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
 
   useEffect(() => {
     let activeChannel: ReturnType<typeof supabase.channel> | null = null;
@@ -76,7 +78,7 @@ export default function NotificationsDropdown() {
 
       if (data) setNotifications(data as NotificationItem[]);
 
-      // 2. Poistetaan varmuuden vuoksi mahdollisesti jo olemassa oleva kanava
+      // 2. Realiaikainen kanava
       const channelName = `user-notifications-${uid}`;
       const existingChannel = supabase
         .getChannels()
@@ -85,7 +87,6 @@ export default function NotificationsDropdown() {
         await supabase.removeChannel(existingChannel);
       }
 
-      // 3. Luodaan uusi kanava, määritetään .on() VASTA SEN JÄLKEEN ja kutsutaan .subscribe()
       const newChannel = supabase.channel(channelName);
 
       newChannel.on(
@@ -117,7 +118,6 @@ export default function NotificationsDropdown() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  // Merkitse kaikki luetuiksi tietokannassa
   const markAllAsRead = async () => {
     if (!userId) return;
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
@@ -129,7 +129,6 @@ export default function NotificationsDropdown() {
       .eq("read", false);
   };
 
-  // Tyhjennä kaikki ilmoitukset tietokannasta
   const clearAll = async () => {
     if (!userId) return;
     setNotifications([]);
@@ -137,7 +136,6 @@ export default function NotificationsDropdown() {
     await supabase.from("notifications").delete().eq("user_id", userId);
   };
 
-  // Merkitse yksittäinen luetuksi
   const markAsRead = async (id: string, currentRead: boolean) => {
     if (currentRead) return;
 
@@ -145,129 +143,144 @@ export default function NotificationsDropdown() {
       prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
     );
 
+    if (selectedNotification && selectedNotification.id === id) {
+      setSelectedNotification((prev) => (prev ? { ...prev, read: true } : null));
+    }
+
     await supabase.from("notifications").update({ read: true }).eq("id", id);
   };
 
+  const deleteNotification = async (id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    setSelectedNotification(null);
+
+    await supabase.from("notifications").delete().eq("id", id);
+  };
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className="relative p-2.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 bg-slate-100 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700/60 rounded-xl transition outline-none cursor-pointer">
-        <Bell className="h-5 w-5" />
-        {unreadCount > 0 && (
-          <span className="absolute top-2 right-2 h-2.5 w-2.5 bg-indigo-500 rounded-full ring-2 ring-white dark:ring-[#12141c]" />
-        )}
-      </DropdownMenuTrigger>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger className="relative p-2.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 bg-slate-100 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700/60 rounded-xl transition outline-none cursor-pointer">
+          <Bell className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <span className="absolute top-2 right-2 h-2.5 w-2.5 bg-indigo-500 rounded-full ring-2 ring-white dark:ring-[#12141c]" />
+          )}
+        </DropdownMenuTrigger>
 
-      <DropdownMenuContent
-        align="end"
-        className="w-80 sm:w-96 rounded-2xl bg-white dark:bg-[#181b26] border-slate-200 dark:border-slate-800 shadow-xl p-0 overflow-hidden"
-      >
-        <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-2">
-            <DropdownMenuLabel className="p-0 font-bold text-slate-900 dark:text-slate-100 text-base">
-              Ilmoitukset
-            </DropdownMenuLabel>
-            {unreadCount > 0 && (
-              <span className="px-2 py-0.5 text-xs font-semibold bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full">
-                {unreadCount} uutta
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-1">
-            {unreadCount > 0 && (
-              <button
-                onClick={markAllAsRead}
-                title="Merkitse kaikki luetuiksi"
-                className="p-1.5 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
-              >
-                <Check size={16} />
-              </button>
-            )}
-            {notifications.length > 0 && (
-              <button
-                onClick={clearAll}
-                title="Tyhjennä ilmoitukset"
-                className="p-1.5 text-xs text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
-              >
-                <Trash2 size={16} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
-          {notifications.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 dark:text-slate-500 text-sm">
-              Ei ilmoituksia
+        <DropdownMenuContent
+          align="end"
+          className="w-80 sm:w-96 rounded-2xl bg-white dark:bg-[#181b26] border-slate-200 dark:border-slate-800 shadow-xl p-0 overflow-hidden"
+        >
+          <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2">
+              <DropdownMenuLabel className="p-0 font-bold text-slate-900 dark:text-slate-100 text-base">
+                Ilmoitukset
+              </DropdownMenuLabel>
+              {unreadCount > 0 && (
+                <span className="px-2 py-0.5 text-xs font-semibold bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full">
+                  {unreadCount} uutta
+                </span>
+              )}
             </div>
-          ) : (
-            notifications.map((item) => (
-              <DropdownMenuItem
-                key={item.id}
-                onClick={() => markAsRead(item.id, item.read)}
-                className={`flex items-start gap-3 p-4 cursor-pointer transition focus:bg-slate-50 dark:focus:bg-slate-800/50 ${
-                  !item.read ? "bg-slate-50/70 dark:bg-slate-800/20" : ""
-                }`}
-              >
-                <div className="mt-0.5 shrink-0">
-                  {item.type === "success" && (
-                    <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                      <Check size={16} />
-                    </div>
-                  )}
-                  {item.type === "info" && (
-                    <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
-                      <Sparkles size={16} />
-                    </div>
-                  )}
-                  {item.type === "warning" && (
-                    <div className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                      <AlertTriangle size={16} />
-                    </div>
-                  )}
-                </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <p
-                      className={`text-sm truncate ${
-                        !item.read
-                          ? "font-semibold text-slate-900 dark:text-slate-100"
-                          : "font-medium text-slate-700 dark:text-slate-300"
-                      }`}
-                    >
-                      {item.title}
-                    </p>
-                    {item.created_at && (
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">
-                        {formatTimestamp(item.created_at)}
-                      </span>
+            <div className="flex items-center gap-1">
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllAsRead}
+                  title="Merkitse kaikki luetuiksi"
+                  className="p-1.5 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
+                >
+                  <Check size={16} />
+                </button>
+              )}
+              {notifications.length > 0 && (
+                <button
+                  onClick={clearAll}
+                  title="Tyhjennä ilmoitukset"
+                  className="p-1.5 text-xs text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
+            {notifications.length === 0 ? (
+              <div className="p-8 text-center text-slate-400 dark:text-slate-500 text-sm">
+                Ei ilmoituksia
+              </div>
+            ) : (
+              notifications.map((item) => (
+                <DropdownMenuItem
+                  key={item.id}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setTimeout(() => {
+                      setSelectedNotification(item);
+                    }, 50);
+                  }}
+                  className={`flex items-start gap-3 p-4 cursor-pointer transition focus:bg-slate-50 dark:focus:bg-slate-800/50 ${
+                    !item.read ? "bg-slate-50/70 dark:bg-slate-800/20" : ""
+                  }`}
+                >
+                  <div className="mt-0.5 shrink-0">
+                    {item.type === "success" && (
+                      <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                        <Check size={16} />
+                      </div>
+                    )}
+                    {item.type === "info" && (
+                      <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                        <Sparkles size={16} />
+                      </div>
+                    )}
+                    {item.type === "warning" && (
+                      <div className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                        <AlertTriangle size={16} />
+                      </div>
                     )}
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2 leading-relaxed">
-                    {item.message.split(/("[^"]*")/).map((part, index) =>
-                      part.startsWith('"') && part.endsWith('"') ? (
-                        <span
-                          key={index}
-                          className="font-semibold text-slate-800 dark:text-slate-200"
-                        >
-                          {part}
-                        </span>
-                      ) : (
-                        part
-                      ),
-                    )}
-                  </p>
-                </div>
 
-                {!item.read && (
-                  <span className="h-2 w-2 rounded-full bg-indigo-600 shrink-0 mt-1.5" />
-                )}
-              </DropdownMenuItem>
-            ))
-          )}
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p
+                        className={`text-sm truncate ${
+                          !item.read
+                            ? "font-semibold text-slate-900 dark:text-slate-100"
+                            : "font-medium text-slate-700 dark:text-slate-300"
+                        }`}
+                      >
+                        {item.title}
+                      </p>
+                      {item.created_at && (
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">
+                          {formatTimestamp(item.created_at)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2 leading-relaxed">
+                      {item.message}
+                    </p>
+                  </div>
+
+                  {!item.read && (
+                    <span className="h-2 w-2 rounded-full bg-indigo-600 shrink-0 mt-1.5" />
+                  )}
+                </DropdownMenuItem>
+              ))
+            )}
+          </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <NotificationsModal
+        notification={selectedNotification}
+        isOpen={Boolean(selectedNotification)}
+        onClose={() => setSelectedNotification(null)}
+        onMarkAsRead={markAsRead}
+        onDelete={deleteNotification}
+      />
+    </>
   );
 }

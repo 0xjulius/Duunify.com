@@ -33,8 +33,8 @@ interface HistoryItem {
 interface EventMeta {
   label: string;
   icon: any;
-  bg: string; // Tähän lisätty dark-luokat
-  text: string; // Tähän lisätty dark-luokat
+  bg: string;
+  text: string;
   dot: string;
 }
 
@@ -237,36 +237,30 @@ export default function HistoryClient({ items }: { items: HistoryItem[] }) {
   }
 
   return (
-    <div className="max-w-4xl mx-auto text-slate-900 dark:text-slate-50">
-      <header className="mb-8 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Toimintaloki</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">
-            Kaikki hakemuksiisi liittyvät tapahtumat yhdessä paikassa.
-          </p>
-        </div>
-
+    <div className="max-w-[1600px] mx-auto text-slate-900 dark:text-slate-50 space-y-6">
+      {/* CSV Export -painike toimintapalkissa */}
+      <div className="flex justify-end">
         <button
           onClick={handleExport}
           disabled={filtered.length === 0}
-          className="shrink-0 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 px-4 py-2.5 rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed"
+          className="shrink-0 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-[#131622] border border-slate-200 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800 px-5 py-2.5 rounded-2xl transition shadow-sm disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
         >
           <Download size={16} />
-          <span className="hidden sm:inline">Vie CSV</span>
+          <span>Vie CSV</span>
         </button>
-      </header>
+      </div>
 
       {/* STATS CARD */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white dark:bg-[#131622] p-5 rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-sm transition-colors">
           <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.total}</p>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Tapahtumaa yhteensä</p>
         </div>
-        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+        <div className="bg-white dark:bg-[#131622] p-5 rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-sm transition-colors">
           <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.thisWeek}</p>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Viimeisen 7 päivän aikana</p>
         </div>
-        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+        <div className="bg-white dark:bg-[#131622] p-5 rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-sm transition-colors">
           <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
             {stats.statusChanges}
           </p>
@@ -275,14 +269,14 @@ export default function HistoryClient({ items }: { items: HistoryItem[] }) {
       </div>
 
       {/* FILTERS PANEL */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm mb-6 space-y-4 transition-colors">
+      <div className="bg-white dark:bg-[#131622] p-5 rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-sm space-y-4 transition-colors">
         <div className="relative">
-          <Search className="absolute left-3 top-2.5 text-slate-400 dark:text-slate-500" size={16} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={17} />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Etsi yrityksen tai tehtävän mukaan..."
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent"
+            className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-[#181b2a]/50 border border-slate-200 dark:border-slate-800/80 rounded-2xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition"
           />
         </div>
 
@@ -291,10 +285,10 @@ export default function HistoryClient({ items }: { items: HistoryItem[] }) {
             <button
               key={f.key}
               onClick={() => setFilter(f.key)}
-              className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition ${
+              className={`text-xs font-semibold px-3.5 py-2 rounded-xl border transition cursor-pointer ${
                 filter === f.key
-                  ? "bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-500/10 dark:border-indigo-500/30 dark:text-indigo-400"
-                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
+                  ? "bg-indigo-600 border-indigo-600 text-white shadow-sm"
+                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-[#181b2a] dark:border-slate-800/80 dark:text-slate-300 dark:hover:bg-slate-800"
               }`}
             >
               {f.label}
@@ -303,7 +297,7 @@ export default function HistoryClient({ items }: { items: HistoryItem[] }) {
         </div>
 
         <div className="pt-3 border-t border-slate-100 dark:border-slate-800/60">
-          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-2.5">
+          <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-2.5">
             <CalendarRange size={13} />
             Ajanjakso
           </div>
@@ -312,10 +306,10 @@ export default function HistoryClient({ items }: { items: HistoryItem[] }) {
               <button
                 key={r.key}
                 onClick={() => setDateRange(r.key)}
-                className={`text-xs px-3 py-1.5 rounded-lg border transition ${
+                className={`text-xs px-3.5 py-2 rounded-xl border transition cursor-pointer ${
                   dateRange === r.key
-                    ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-semibold dark:bg-indigo-500/10 dark:border-indigo-500/30 dark:text-indigo-400"
-                    : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
+                    ? "bg-indigo-600 border-indigo-600 text-white font-semibold shadow-sm"
+                    : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-[#181b2a] dark:border-slate-800/80 dark:text-slate-300 dark:hover:bg-slate-800"
                 }`}
               >
                 {r.label}
@@ -329,14 +323,14 @@ export default function HistoryClient({ items }: { items: HistoryItem[] }) {
                 type="date"
                 value={customFrom}
                 onChange={(e) => setCustomFrom(e.target.value)}
-                className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+                className="bg-white dark:bg-[#181b2a] border border-slate-200 dark:border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
               />
               <span className="text-slate-400 dark:text-slate-500 text-xs">–</span>
               <input
                 type="date"
                 value={customTo}
                 onChange={(e) => setCustomTo(e.target.value)}
-                className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100"
+                className="bg-white dark:bg-[#181b2a] border border-slate-200 dark:border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
               />
             </div>
           )}
@@ -345,21 +339,21 @@ export default function HistoryClient({ items }: { items: HistoryItem[] }) {
 
       {/* TIMELINE LIST */}
       {grouped.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-12 text-center transition-colors">
+        <div className="bg-white dark:bg-[#131622] rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-sm p-12 text-center transition-colors">
           <Activity className="w-10 h-10 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
           <p className="text-slate-500 dark:text-slate-400 text-sm">
             Ei tapahtumia valitulla ajanjaksolla tai haulla.
           </p>
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {grouped.map(([dayKey, dayItems]) => (
             <div key={dayKey}>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-3 capitalize">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-3">
                 {formatDayLabel(dayKey)}
               </p>
 
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm divide-y divide-slate-100 dark:divide-slate-800/60 overflow-hidden transition-colors">
+              <div className="bg-white dark:bg-[#131622] rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-sm divide-y divide-slate-100 dark:divide-slate-800/60 overflow-hidden transition-colors">
                 {dayItems.map((item) => {
                   const meta = EVENT_META[item.event];
                   const Icon = meta.icon;
@@ -367,17 +361,17 @@ export default function HistoryClient({ items }: { items: HistoryItem[] }) {
                   return (
                     <div
                       key={item.id}
-                      className="flex items-start gap-4 p-4 hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors"
+                      className="flex items-start gap-4 p-4 sm:p-5 hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors"
                     >
                       <div
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${meta.bg} ${meta.text}`}
+                        className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${meta.bg} ${meta.text}`}
                       >
-                        <Icon size={16} />
+                        <Icon size={18} />
                       </div>
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+                          <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 truncate">
                             {item.company} · {item.jobTitle}
                           </p>
                           <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0">
@@ -388,7 +382,7 @@ export default function HistoryClient({ items }: { items: HistoryItem[] }) {
                           </span>
                         </div>
 
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
                           {meta.label}
                           {item.event === "status_changed" &&
                             item.oldStatus &&

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
+import PageHero from "@/components/PageHero";
 import { CompanyLogo } from "@/components/applications/CompanyLogo";
 import {
   Bookmark,
@@ -194,28 +195,21 @@ export default function SavedJobsPage() {
   };
 
   return (
-    <main className="min-h-screen flex bg-slate-50 dark:bg-slate-950 transition-colors duration-300 text-slate-900 dark:text-slate-50">
+    <main className="min-h-screen flex bg-slate-100 dark:bg-[#0d0f18] bg-gradient-to-br from-violet-50 via-pink-50 to-sky-50 dark:from-[#0d0f18] dark:via-[#111322] dark:to-[#0a0c14] transition-colors duration-300 text-slate-900 dark:text-slate-50">
       <Sidebar />
 
-      <div className="flex-1 overflow-auto flex flex-col">
+      <div className="flex-1 overflow-auto flex flex-col min-w-0">
         <Header />
-        <div className="p-4 sm:p-6 lg:p-8 max-w-[1500px] mx-auto w-full flex flex-col gap-6">
-          {/* HEADER */}
-          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-            <div>
-              <h1 className="text-xl sm:text-2xl lg:text-2xl font-bold flex items-center gap-3">
-                <span className="bg-gradient-to-br from-indigo-200 to-violet-600 dark:from-indigo-500/20 dark:to-violet-600/20 p-3 rounded-xl">
-                  <Bookmark className="h-6 w-6 text-white dark:text-indigo-400" />
-                </span>
-                Tallennetut työpaikat
-              </h1>
-              <p className="text-slate-500 dark:text-slate-400 mt-3 ml-2 sm:ml-5 md:ml-[37px] text-sm">
-                Työpaikat, jotka haluat laittaa talteen.
-              </p>
-            </div>
-
+        
+        <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full flex flex-col gap-6">
+          {/* UUSI PAGEHERO */}
+          <PageHero
+            icon={Bookmark}
+            title="Tallennetut työpaikat"
+            subtitle="Työpaikat, jotka haluat laittaa talteen"
+            description="Täällä voit tarkastella, hallita ja arkistoida kiinnostavia työpaikkailmoituksia, jotka olet tallentanut myöhempää käyttöä varten."
+          >
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-              {/* Hakupalkki ylempänä mobiilissa */}
               <div className="relative flex-1 sm:w-64">
                 <Search
                   size={16}
@@ -226,22 +220,22 @@ export default function SavedJobsPage() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Hae suosikeista..."
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 shadow-sm"
+                  className="w-full bg-white dark:bg-[#131622] border border-slate-200 dark:border-slate-800/80 pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 shadow-sm"
                 />
               </div>
 
               <button
                 onClick={() => setShowForm((prev) => !prev)}
-                className="bg-indigo-600 dark:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-semibold text-sm whitespace-nowrap hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors shadow-sm"
+                className="bg-indigo-600 dark:bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm whitespace-nowrap hover:bg-indigo-700 dark:hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-600/25"
               >
                 {showForm ? "Sulje lomake" : "+ Tallenna työpaikka"}
               </button>
             </div>
-          </div>
+          </PageHero>
 
           {/* INLINE LOMAKE */}
           {showForm && (
-            <div className="relative border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900 shadow-md">
+            <div className="relative border border-slate-200 dark:border-slate-800/80 rounded-3xl overflow-hidden bg-white dark:bg-[#131622] shadow-xl">
               <button
                 onClick={() => setShowForm(false)}
                 className="absolute top-4 right-4 z-10 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition"
@@ -257,7 +251,7 @@ export default function SavedJobsPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <button
               onClick={() => setActiveStatFilter("tallennetut")}
-              className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all text-left hover:border-indigo-500 dark:hover:border-indigo-400 group relative overflow-hidden"
+              className="bg-white dark:bg-[#131622] p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm transition-all text-left hover:border-indigo-500 dark:hover:border-indigo-400 group relative overflow-hidden"
             >
               <h3 className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                 Tallennetut paikat
@@ -276,7 +270,7 @@ export default function SavedJobsPage() {
 
             <button
               onClick={() => setActiveStatFilter("uudet")}
-              className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all text-left hover:border-emerald-500 dark:hover:border-emerald-400 group relative overflow-hidden"
+              className="bg-white dark:bg-[#131622] p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm transition-all text-left hover:border-emerald-500 dark:hover:border-emerald-400 group relative overflow-hidden"
             >
               <h3 className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                 Uudet tällä viikolla
@@ -295,7 +289,7 @@ export default function SavedJobsPage() {
 
             <button
               onClick={() => setActiveStatFilter("paattyvat")}
-              className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all text-left hover:border-amber-500 dark:hover:border-amber-400 group relative overflow-hidden"
+              className="bg-white dark:bg-[#131622] p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm transition-all text-left hover:border-amber-500 dark:hover:border-amber-400 group relative overflow-hidden"
             >
               <h3 className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                 Päättyy pian
@@ -314,7 +308,7 @@ export default function SavedJobsPage() {
 
             <button
               onClick={() => setActiveStatFilter("arkistoidut")}
-              className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all text-left hover:border-rose-500 dark:hover:border-rose-400 group relative overflow-hidden"
+              className="bg-white dark:bg-[#131622] p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm transition-all text-left hover:border-rose-500 dark:hover:border-rose-400 group relative overflow-hidden"
             >
               <h3 className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
                 Arkistoidut
@@ -343,8 +337,8 @@ export default function SavedJobsPage() {
                     onClick={() => setActiveTab(tab)}
                     className={`px-4 py-2 rounded-xl font-medium text-xs sm:text-sm whitespace-nowrap transition-colors ${
                       activeTab === tab
-                        ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
-                        : "bg-white border border-slate-200 text-slate-700 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                        ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-sm"
+                        : "bg-white border border-slate-200 text-slate-700 dark:bg-[#131622] dark:border-slate-800/80 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                     }`}
                   >
                     {tab}
@@ -352,7 +346,7 @@ export default function SavedJobsPage() {
                 ))}
               </div>
 
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800/60 overflow-hidden shadow-sm transition-colors">
+              <div className="bg-white dark:bg-[#131622] rounded-3xl border border-slate-200 dark:border-slate-800/80 divide-y divide-slate-100 dark:divide-slate-800/60 overflow-hidden shadow-sm transition-colors">
                 {loading ? (
                   <div className="p-12 text-center text-slate-500 dark:text-slate-400 text-sm">
                     Ladataan työpaikkoja...
@@ -369,7 +363,6 @@ export default function SavedJobsPage() {
                       className="w-full p-4 sm:p-5 flex items-center justify-between gap-3 sm:gap-4 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors text-left cursor-pointer group"
                     >
                       <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                        {/* Yrityksen Logo */}
                         <div className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 flex items-center justify-center rounded-xl overflow-hidden">
                           <CompanyLogo
                             logo={job.company_logo}
@@ -397,7 +390,7 @@ export default function SavedJobsPage() {
                         )}
                         <button
                           onClick={(e) => toggleArchive(e, job)}
-                          className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-400 text-slate-400 transition-colors"
+                          className="p-2 rounded-xl border border-slate-200 dark:border-slate-800/80 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-400 text-slate-400 transition-colors cursor-pointer"
                           title="Siirrä arkistoon"
                         >
                           <Trash2 size={16} />
@@ -409,13 +402,13 @@ export default function SavedJobsPage() {
               </div>
             </div>
 
-            {/* OIKEA REUNA: ROSKAKORI / ARKISTO */}
+            {/* OIKEA REUNA: ARKISTO */}
             <div className="flex flex-col gap-3 w-full">
               <h3 className="font-bold text-sm sm:text-base text-slate-500 dark:text-slate-400 flex items-center gap-2">
                 <Trash2 size={16} /> Arkistoidut / Roskakori
               </h3>
 
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800/60 overflow-hidden shadow-sm transition-colors min-h-[120px] max-h-[350px] overflow-y-auto">
+              <div className="bg-white dark:bg-[#131622] rounded-3xl border border-slate-200 dark:border-slate-800/80 divide-y divide-slate-100 dark:divide-slate-800/60 overflow-hidden shadow-sm transition-colors min-h-[120px] max-h-[350px] overflow-y-auto">
                 {loading ? (
                   <div className="p-6 text-center text-slate-500 dark:text-slate-400 text-sm">
                     Ladataan...
@@ -449,7 +442,7 @@ export default function SavedJobsPage() {
                       </div>
                       <button
                         onClick={(e) => toggleArchive(e, job)}
-                        className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-400 text-slate-400 transition-colors shrink-0"
+                        className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800/80 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-400 text-slate-400 transition-colors shrink-0 cursor-pointer"
                         title="Palauta tallennettuihin"
                       >
                         <ArchiveRestore size={15} />
@@ -466,7 +459,7 @@ export default function SavedJobsPage() {
       {/* STATS MODAL */}
       <div
         onClick={() => setActiveStatFilter(null)}
-        className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm transition-all duration-300 cursor-pointer ${
+        className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm transition-all duration-300 cursor-pointer ${
           activeStatFilter
             ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none"
@@ -474,13 +467,13 @@ export default function SavedJobsPage() {
       >
         <div
           onClick={(e) => e.stopPropagation()}
-          className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[85vh] cursor-default transition-all duration-300 ${
+          className={`bg-white dark:bg-[#131622] border border-slate-200 dark:border-slate-800/80 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] cursor-default transition-all duration-300 ${
             activeStatFilter
               ? "opacity-100 scale-100 translate-y-0"
               : "opacity-0 scale-95 translate-y-4"
           }`}
         >
-          <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/20">
+          <div className="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-[#181b2a]/50">
             <div>
               <h3 className="font-bold text-base sm:text-lg text-slate-900 dark:text-slate-100">
                 {getStatModalTitle()}
@@ -491,13 +484,13 @@ export default function SavedJobsPage() {
             </div>
             <button
               onClick={() => setActiveStatFilter(null)}
-              className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
             >
               <X size={18} />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 sm:p-5 divide-y divide-slate-100 dark:divide-slate-800/60">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 divide-y divide-slate-100 dark:divide-slate-800/60">
             {getStatModalJobs().length === 0 ? (
               <div className="p-8 text-center text-slate-400 dark:text-slate-500 text-sm">
                 Ei kohteita tässä kategoriassa.
@@ -510,7 +503,7 @@ export default function SavedJobsPage() {
                     setActiveStatFilter(null);
                     handleOpenJob(job);
                   }}
-                  className="py-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/30 px-2 -mx-2 rounded-xl transition-colors text-left"
+                  className="py-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/30 px-3 -mx-3 rounded-2xl transition-colors text-left"
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="h-9 w-9 shrink-0 flex items-center justify-center">

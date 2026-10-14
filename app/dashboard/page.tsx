@@ -9,7 +9,7 @@ import Link from "next/link";
 import StatsCard from "@/components/dashboard/StatsCard";
 import GhostedCard from "@/components/dashboard/GhostedCard";
 import Sidebar from "@/components/Sidebar";
-import Header from "@/components/Header"; // LISÄTTY: Header-komponentti
+import Header from "@/components/Header";
 import ApplicationDialog from "@/app/applications/ApplicationDialog";
 import { CompanyLogo } from "@/components/applications/CompanyLogo";
 import {
@@ -319,10 +319,9 @@ export default function DashboardPage() {
     stats.total > 0 ? Math.round((stats.ghosted / stats.total) * 100) : 0;
 
   return (
-    <div className="flex flex-row min-h-screen bg-slate-100 dark:bg-[#0f1117] overflow-x-hidden bg-gradient-to-br from-violet-50 via-pink-50 to-sky-50 dark:from-[#141625] dark:via-[#151320] dark:to-[#101420]">
+    <div className="flex flex-row min-h-screen bg-slate-100 dark:bg-[#0d0f18] overflow-x-hidden bg-gradient-to-br from-violet-50 via-pink-50 to-sky-50 dark:from-[#0d0f18] dark:via-[#111322] dark:to-[#0a0c14]">
       <Sidebar />
 
-      {/* Sijoitetaan Flex-sarake oikealle puoliskolle sisältämään Headerin ja sivun sisällön */}
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
 
@@ -567,10 +566,10 @@ export default function DashboardPage() {
         </main>
       </div>
 
-      {/* INTERAKTIIVINEN STATS MODAL METRIIKOILLE */}
+      {/* STATS MODAL */}
       <div
         onClick={() => setActiveStatFilter(null)}
-        className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm transition-all duration-300 cursor-pointer ${
+        className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm transition-all duration-300 cursor-pointer ${
           activeStatFilter
             ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none"
@@ -578,14 +577,14 @@ export default function DashboardPage() {
       >
         <div
           onClick={(e) => e.stopPropagation()}
-          className={`bg-white dark:bg-[#1e2230] border border-slate-200 dark:border-slate-800 w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[85vh] cursor-default transition-all duration-300 ${
+          className={`bg-white dark:bg-[#131622] border border-slate-200 dark:border-slate-800/80 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] cursor-default transition-all duration-300 ${
             activeStatFilter
               ? "opacity-100 scale-100 translate-y-0"
               : "opacity-0 scale-95 translate-y-4"
           }`}
         >
           {/* Modal Header */}
-          <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/20">
+          <div className="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-[#181b2a]/50">
             <div>
               <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100">
                 {getStatModalTitle()}
@@ -596,7 +595,7 @@ export default function DashboardPage() {
             </div>
             <button
               onClick={() => setActiveStatFilter(null)}
-              className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
             >
               <X size={18} />
             </button>
@@ -618,7 +617,7 @@ export default function DashboardPage() {
                     setIsDemoClick(true);
                     setOpen(true);
                   }}
-                  className="py-3 sm:py-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/30 px-2 -mx-2 rounded-xl transition-colors text-left"
+                  className="py-3 sm:py-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/30 px-3 -mx-3 rounded-2xl transition-colors text-left"
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="h-10 w-10 shrink-0 flex items-center justify-center">
