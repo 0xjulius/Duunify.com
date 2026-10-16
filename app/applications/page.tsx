@@ -3,18 +3,17 @@
 // 1. Tämä pakottaa middlewaren tarkistamaan sivun joka kerta
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, startTransition } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { toast } from "sonner";
 
-import AddApplicationForm from "@/app/applications/AddApplicationForm";
 import ApplicationCard from "@/app/applications/ApplicationCard";
 import ApplicationRow from "@/components/applications/ApplicationRow";
 import ApplicationStats from "@/components/applications/ApplicationStats";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import PageHero from "@/components/PageHero";
+import QuickAddApplication from "@/components/applications/QuickAddApplication";
 import { Briefcase, Filter, LayoutGrid, List as ListIcon } from "lucide-react";
 
 // Shadcn UI Select -tuonnit
@@ -41,7 +40,7 @@ type Application = {
 export default function Home() {
   const router = useRouter();
   const [applications, setApplications] = useState<Application[]>([]);
-  const [showForm, setShowForm] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
@@ -204,31 +203,26 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* Lisää-painike */}
+              {/* Lisää-painike, joka avaa QuickAddApplication-modaalin ilman viivettä */}
               <button
-                onClick={() => setShowForm(!showForm)}
-                className={`w-full sm:w-auto px-6 py-4 rounded-2xl font-semibold transition-all cursor-pointer whitespace-nowrap shadow-sm ${
-                  showForm
-                    ? "bg-red-500 text-white hover:bg-red-600 dark:bg-red-500/20 dark:text-red-400 dark:border dark:border-red-500/30 dark:hover:bg-red-500/30"
-                    : "bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 shadow-indigo-600/20"
-                }`}
+                onClick={() => {
+                  startTransition(() => {
+                    setShowQuickAdd(true);
+                  });
+                }}
+                className="w-full sm:w-auto px-6 py-4 rounded-2xl font-semibold transition-all cursor-pointer whitespace-nowrap shadow-sm bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 shadow-indigo-600/20"
               >
-                {showForm ? "✕ Sulje" : "+ Lisää työpaikka"}
+                + Lisää työpaikka
               </button>
             </div>
           </div>
 
-          {/* FORM */}
-          {showForm && (
-            <div className="animate-in fade-in zoom-in-95 slide-in-from-top-4 duration-300 ease-out fill-mode-both">
-              <AddApplicationForm
-                onSuccess={() => {
-                  fetchApplications();
-                  setShowForm(false);
-                }}
-              />
-            </div>
-          )}
+          {/* ULKOINEN MODAALI */}
+          <QuickAddApplication
+            open={showQuickAdd}
+            onOpenChange={setShowQuickAdd}
+            onSuccess={fetchApplications}
+          />
 
           {/* APPLICATIONS VIEW (GRID tai LIST) */}
           {loading ? (
@@ -302,8 +296,12 @@ export default function Home() {
               </p>
               {!search && statusFilter === "all" && (
                 <button
-                  onClick={() => setShowForm(true)}
-                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white rounded-xl font-medium shadow-sm shadow-indigo-600/25"
+                  onClick={() => {
+                    startTransition(() => {
+                      setShowQuickAdd(true);
+                    });
+                  }}
+                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white rounded-xl font-medium shadow-sm shadow-indigo-600/25 cursor-pointer"
                 >
                   + Lisää ensimmäinen hakemus
                 </button>

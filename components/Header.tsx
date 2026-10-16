@@ -147,8 +147,11 @@ export default function Header() {
       </header>
 
       <QuickAddApplication
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        open={isAddModalOpen}
+        onOpenChange={setIsAddModalOpen}
+        onSuccess={() => {
+          window.location.reload();
+        }}
       />
     </>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation"; // 1. Tuodaan useRouter
+import { useRouter } from "next/navigation";
 import {
   X,
   Sparkles,
@@ -24,8 +24,8 @@ import {
 } from "@/components/ui/select";
 
 interface QuickAddApplicationProps {
-  isOpen: boolean;
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
 }
 
@@ -46,11 +46,11 @@ const initialFormData = {
 };
 
 export default function QuickAddApplication({
-  isOpen,
-  onClose,
+  open,
+  onOpenChange,
   onSuccess,
 }: QuickAddApplicationProps) {
-  const router = useRouter(); // 2. Otetaan router käyttöön
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [autoFilling, setAutoFilling] = useState(false);
   const [showFields, setShowFields] = useState(false);
@@ -59,7 +59,7 @@ export default function QuickAddApplication({
   const handleModalClose = () => {
     setShowFields(false);
     setFormData(initialFormData);
-    onClose();
+    onOpenChange(false);
   };
 
   const handleChange = (
@@ -210,7 +210,6 @@ export default function QuickAddApplication({
       if (onSuccess) onSuccess();
       handleModalClose();
 
-      // 3. Ohjataan käyttäjä sivulle /applications
       router.push("/applications");
     } catch (err: any) {
       console.error("Virhe tallennettaessa:", err.message);
@@ -222,9 +221,8 @@ export default function QuickAddApplication({
 
   return (
     <AnimatePresence>
-      {isOpen && (
+      {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-          {/* Tausta / Backdrop aninoitu sulavasti */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -234,7 +232,6 @@ export default function QuickAddApplication({
             onClick={handleModalClose}
           />
 
-          {/* Modal / Kortti sulavalla avautumis- ja sulkeutumisanimaatiolla */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
