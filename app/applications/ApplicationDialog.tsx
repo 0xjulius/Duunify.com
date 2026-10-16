@@ -153,38 +153,6 @@ export default function ApplicationDialog({
   const [editedNotes, setEditedNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
 
-  // Swipe to close
-  const touchStartX = useRef<number>(0);
-  const touchCurrentX = useRef<number>(0);
-  const [translateX, setTranslateX] = useState<number>(0);
-  const [isSwiping, setIsSwiping] = useState<boolean>(false);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.targetTouches[0].clientX;
-    touchCurrentX.current = e.targetTouches[0].clientX;
-    setIsSwiping(true);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isSwiping) return;
-    const currentX = e.targetTouches[0].clientX;
-    touchCurrentX.current = currentX;
-
-    const diffX = currentX - touchStartX.current;
-    if (diffX > 0) {
-      setTranslateX(diffX);
-    }
-  };
-
-  const handleTouchEnd = () => {
-    setIsSwiping(false);
-    const swipeDistance = touchCurrentX.current - touchStartX.current;
-    if (swipeDistance > 80) {
-      onOpenChange(false);
-    }
-    setTranslateX(0);
-  };
-
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -200,7 +168,6 @@ export default function ApplicationDialog({
 
   useEffect(() => {
     if (!open) {
-      setTranslateX(0);
       setStatusMenuOpen(false);
       setIsEditingNotes(false);
     }
@@ -215,7 +182,6 @@ export default function ApplicationDialog({
       setEditedNotes(notesVal);
       setIsEditingNotes(false);
 
-      // Avataan haitarit automaattisesti, jos niissä on dataa
       setIsAttachmentsOpen(Boolean(cvVal) || isDemo);
       setIsNotesOpen(Boolean(notesVal.trim()));
     }
@@ -453,26 +419,18 @@ export default function ApplicationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        style={{
-          left: translateX > 0 ? `calc(50% + ${translateX}px)` : "50%",
-          transition: isSwiping
-            ? "none"
-            : "left 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-        className="!max-w-4xl !w-[96vw] md:!w-[90vw] h-[90vh] max-h-[90vh] p-0 overflow-hidden flex flex-col bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl select-none"
-      >
+      <DialogContent className="!max-w-4xl !w-[95vw] md:!w-[90vw] h-[85vh] max-h-[85vh] p-0 overflow-hidden flex flex-col bg-white dark:bg-[#111422] border-slate-200 dark:border-slate-800/80 rounded-3xl shadow-2xl select-none">
+        {/* MOBIILIN VETOPAULA (HANDLE) */}
+        <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto my-2.5 md:hidden shrink-0" />
+
         {/* KIINTEÄ YLÄPISSELI (HEADER & SULKUNAPPI) */}
-        <div className="relative px-5 pt-5 pb-4 md:px-8 md:pt-8 md:pb-6 border-b border-slate-100 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md z-20 shrink-0">
-          <div className="absolute top-4 right-4 md:top-6 md:right-6">
+        <div className="relative px-5 pt-2 pb-4 md:px-8 md:pt-7 md:pb-6 border-b border-slate-100 dark:border-slate-800/80 bg-white/95 dark:bg-[#111422]/95 backdrop-blur-md z-20 shrink-0">
+          <div className="absolute top-2 right-4 md:top-6 md:right-6">
             <DialogClose asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full cursor-pointer"
+                className="h-9 w-9 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-full cursor-pointer"
                 onClick={(e) => e.stopPropagation()}
               >
                 <X size={20} />
@@ -480,7 +438,7 @@ export default function ApplicationDialog({
             </DialogClose>
           </div>
 
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pr-10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pr-8 md:pr-10">
             <div className="flex items-center gap-3.5 min-w-0">
               <div className="h-11 w-11 shrink-0 flex items-center justify-center">
                 <CompanyLogo
@@ -489,10 +447,10 @@ export default function ApplicationDialog({
                 />
               </div>
               <div className="min-w-0">
-                <DialogTitle className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-50 truncate">
+                <DialogTitle className="text-lg md:text-2xl font-bold text-slate-900 dark:text-slate-50 truncate">
                   {app.company}
                 </DialogTitle>
-                <h2 className="text-sm md:text-base font-medium text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                <h2 className="text-xs md:text-base font-medium text-slate-500 dark:text-slate-400 truncate mt-0.5">
                   {app.job_title}
                 </h2>
               </div>
@@ -518,7 +476,7 @@ export default function ApplicationDialog({
                 </button>
 
                 {statusMenuOpen && (
-                  <div className="absolute z-50 top-full left-0 mt-1.5 w-48 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden py-1.5">
+                  <div className="absolute z-50 top-full left-0 mt-1.5 w-48 rounded-2xl bg-white dark:bg-[#181b2a] border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden py-1.5">
                     {STATUS_OPTIONS.map((st) => (
                       <button
                         key={st}
@@ -589,10 +547,10 @@ export default function ApplicationDialog({
         {/* VIERITETTÄVÄ ALUE */}
         <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-6 text-left">
           {/* LIITETIEDOSTOT & MUISTIINPANOT GRID */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             
             {/* LIITETIEDOSTOT (COLLAPSIBLE / HAITARI) */}
-            <div className="space-y-3 flex flex-col">
+            <div className="space-y-2.5 flex flex-col">
               <div className="flex items-center justify-between">
                 <button
                   onClick={() => setIsAttachmentsOpen(!isAttachmentsOpen)}
@@ -677,7 +635,7 @@ export default function ApplicationDialog({
             </div>
 
             {/* MUISTIINPANOT (COLLAPSIBLE / HAITARI) */}
-            <div className="space-y-3 flex flex-col">
+            <div className="space-y-2.5 flex flex-col">
               <div className="flex items-center justify-between">
                 <button
                   onClick={() => setIsNotesOpen(!isNotesOpen)}
@@ -739,7 +697,7 @@ export default function ApplicationDialog({
                     <textarea
                       value={editedNotes}
                       onChange={(e) => setEditedNotes(e.target.value)}
-                      className="w-full h-24 p-3 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                      className="w-full h-24 p-3 text-sm bg-white dark:bg-[#181b2a] border border-slate-200 dark:border-slate-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                       placeholder="Kirjoita muistiinpanoja hakemuksesta..."
                       autoFocus
                     />
