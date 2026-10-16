@@ -76,24 +76,17 @@ function getStatusStyles(status: string) {
   }
 }
 
-const formatDateTime = (dateVal?: string | Date) => {
+const formatDateShort = (dateVal?: string | Date) => {
   if (!dateVal) return "";
   try {
     const date = new Date(dateVal);
     if (isNaN(date.getTime())) return "";
 
-    const pvm = date.toLocaleDateString("fi-FI", {
+    return date.toLocaleDateString("fi-FI", {
       day: "numeric",
       month: "numeric",
       year: "numeric",
     });
-
-    const klo = date.toLocaleTimeString("fi-FI", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
-    return `${pvm} klo ${klo}`;
   } catch (e) {
     return "";
   }
@@ -114,12 +107,14 @@ function formatDialogSalary(
 function DialogMetaChip({
   icon,
   children,
+  customStyle = "bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-slate-200/60 dark:border-slate-700/60",
 }: {
   icon: React.ReactNode;
   children: React.ReactNode;
+  customStyle?: string;
 }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60">
+    <span className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-medium border shrink-0 whitespace-nowrap ${customStyle}`}>
       {icon}
       {children}
     </span>
@@ -146,12 +141,42 @@ export default function ApplicationDialog({
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  // Haitaritilat: liitteet ja muistiinpanot
   const [isAttachmentsOpen, setIsAttachmentsOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [editedNotes, setEditedNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
+
+  const touchStartY = useRef<number>(0);
+  const touchCurrentY = useRef<number>(0);
+  const [translateY, setTranslateY] = useState<number>(0);
+  const [isSwiping, setIsSwiping] = useState<boolean>(false);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.targetTouches[0].clientY;
+    touchCurrentY.current = e.targetTouches[0].clientY;
+    setIsSwiping(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isSwiping) return;
+    const currentY = e.targetTouches[0].clientY;
+    touchCurrentY.current = currentY;
+
+    const diffY = currentY - touchStartY.current;
+    if (diffY > 0) {
+      setTranslateY(diffY);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsSwiping(false);
+    const swipeDistance = touchCurrentY.current - touchStartY.current;
+    if (swipeDistance > 100) {
+      onOpenChange(false);
+    }
+    setTranslateY(0);
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -168,6 +193,7 @@ export default function ApplicationDialog({
 
   useEffect(() => {
     if (!open) {
+      setTranslateY(0);
       setStatusMenuOpen(false);
       setIsEditingNotes(false);
     }
@@ -412,19 +438,35 @@ export default function ApplicationDialog({
     ? (EMPLOYMENT_TYPE_FI[app.employment_type] ?? app.employment_type)
     : null;
 
+  // LOGIIKKA: Tarkistetaan, onko hakemus vain tallennettu vai haettu
+  const isSavedOnly = currentStatus === "Tallennettu";
   const appliedEvent = history.find((h) => h.new_status === "Haettu");
-  const actualAppliedDate = appliedEvent
-    ? appliedEvent.created_at
-    : app.applied_date || app.created_at;
+  const actualAppliedDate = appliedEvent?.created_at || app.applied_date;
+  const createdDate = app.created_at;
+
+  const historyCount = isDemo
+    ? getDemoHistoryForApp(app.id).length
+    : history.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-4xl !w-[95vw] md:!w-[90vw] h-[85vh] max-h-[85vh] p-0 overflow-hidden flex flex-col bg-white dark:bg-[#111422] border-slate-200 dark:border-slate-800/80 rounded-3xl shadow-2xl select-none">
+      <DialogContent
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{
+          transform: translateY > 0 ? `translateY(${translateY}px)` : undefined,
+          transition: isSwiping
+            ? "none"
+            : "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+        }}
+        className="!max-w-4xl !w-[95vw] md:!w-[90vw] h-[85vh] max-h-[85vh] p-0 overflow-hidden flex flex-col bg-white dark:bg-[#111422] border-slate-200 dark:border-slate-800/80 rounded-3xl shadow-2xl select-none"
+      >
         {/* MOBIILIN VETOPAULA (HANDLE) */}
-        <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto my-2.5 md:hidden shrink-0" />
+        <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto my-2.5 md:hidden shrink-0 cursor-grab active:cursor-grabbing" />
 
         {/* KIINTEÄ YLÄPISSELI (HEADER & SULKUNAPPI) */}
-        <div className="relative px-5 pt-2 pb-4 md:px-8 md:pt-7 md:pb-6 border-b border-slate-100 dark:border-slate-800/80 bg-white/95 dark:bg-[#111422]/95 backdrop-blur-md z-20 shrink-0">
+        <div className="relative px-5 pt-2 pb-3 md:px-8 md:pt-7 md:pb-6 border-b border-slate-100 dark:border-slate-800/80 bg-white/95 dark:bg-[#111422]/95 backdrop-blur-md z-20 shrink-0">
           <div className="absolute top-2 right-4 md:top-6 md:right-6">
             <DialogClose asChild>
               <Button
@@ -453,6 +495,12 @@ export default function ApplicationDialog({
                 <h2 className="text-xs md:text-base font-medium text-slate-500 dark:text-slate-400 truncate mt-0.5">
                   {app.job_title}
                 </h2>
+                
+                {/* PAIKKAKUNTA VAKIONA */}
+                <p className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">
+                  <MapPin size={12} className="text-indigo-500 shrink-0" />
+                  <span>{app.location || "Sijainti ei tiedossa"}</span>
+                </p>
               </div>
             </div>
 
@@ -510,11 +558,32 @@ export default function ApplicationDialog({
             </div>
           </div>
 
-          {/* METADATA CHIPS */}
-          <div className="flex flex-wrap gap-2 pt-3">
-            {app.location && (
-              <DialogMetaChip icon={<MapPin size={13} className="text-slate-400" />}>
-                {app.location}
+          {/* KESKEISET PÄIVÄMÄÄRÄT JA METADATA */}
+          <div className="flex items-center gap-2 pt-2.5 overflow-x-auto no-scrollbar scroll-smooth -mx-5 px-5 md:mx-0 md:px-0 md:flex-wrap">
+            {/* LOGIIKKA: JOS TILA ON "TALLENNETTU" -> NÄYTETÄÄN TALLENNETTU */}
+            {isSavedOnly ? (
+              <DialogMetaChip
+                icon={<Calendar size={13} className="text-amber-500" />}
+                customStyle="bg-amber-50/70 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30 font-medium"
+              >
+                Tallennettu {formatDateShort(createdDate || actualAppliedDate)}
+              </DialogMetaChip>
+            ) : actualAppliedDate ? (
+              /* JOS HAKEMUS ON HAETTU / ETENEMÄSSÄ -> NÄYTETÄÄN HAETTU */
+              <DialogMetaChip
+                icon={<Calendar size={13} className="text-emerald-500" />}
+                customStyle="bg-emerald-50/70 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30 font-medium"
+              >
+                Haettu {formatDateShort(actualAppliedDate)}
+              </DialogMetaChip>
+            ) : null}
+
+            {app.valid_through && (
+              <DialogMetaChip
+                icon={<Clock size={13} className="text-amber-500" />}
+                customStyle="bg-amber-50/70 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30 font-medium"
+              >
+                Päättyy {formatDateShort(app.valid_through)}
               </DialogMetaChip>
             )}
 
@@ -527,18 +596,6 @@ export default function ApplicationDialog({
             {salary && (
               <DialogMetaChip icon={<Coins size={13} className="text-slate-400" />}>
                 {salary}
-              </DialogMetaChip>
-            )}
-
-            {actualAppliedDate && (
-              <DialogMetaChip icon={<Calendar size={13} className="text-slate-400" />}>
-                Haettu {formatDateTime(actualAppliedDate)}
-              </DialogMetaChip>
-            )}
-
-            {app.valid_through && (
-              <DialogMetaChip icon={<Clock size={13} className="text-slate-400" />}>
-                Päättyy {formatDateTime(app.valid_through)}
               </DialogMetaChip>
             )}
           </div>
@@ -727,18 +784,16 @@ export default function ApplicationDialog({
               <TabsList className="grid w-full grid-cols-2 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-2xl mb-6">
                 <TabsTrigger
                   value="description"
-                  className="rounded-xl text-xs md:text-sm font-medium py-2 transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-slate-900 dark:data-[state=active]:text-slate-100 data-[state=active]:shadow-sm cursor-pointer"
+                  className="rounded-xl text-xs md:text-sm font-medium py-2 px-1 transition-all truncate data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-slate-900 dark:data-[state=active]:text-slate-100 data-[state=active]:shadow-sm cursor-pointer"
                 >
                   Työpaikkakuvaus
                 </TabsTrigger>
                 <TabsTrigger
                   value="history"
-                  className="rounded-xl text-xs md:text-sm font-medium py-2 transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-slate-900 dark:data-[state=active]:text-slate-100 data-[state=active]:shadow-sm cursor-pointer"
+                  className="rounded-xl text-xs md:text-sm font-medium py-2 px-1 transition-all truncate data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-slate-900 dark:data-[state=active]:text-slate-100 data-[state=active]:shadow-sm cursor-pointer"
                 >
-                  Rekrytoinnin eteneminen{" "}
-                  {isDemo
-                    ? `(${getDemoHistoryForApp(app.id).length})`
-                    : history.length > 0 && `(${history.length})`}
+                  <span className="sm:hidden">Eteneminen ({historyCount})</span>
+                  <span className="hidden sm:inline">Rekrytoinnin eteneminen ({historyCount})</span>
                 </TabsTrigger>
               </TabsList>
 

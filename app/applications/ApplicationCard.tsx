@@ -31,6 +31,7 @@ type Application = {
   salary_max?: number | null;
   employment_type?: string | null;
   valid_through?: string | null;
+  created_at?: string | null;
 };
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -113,12 +114,14 @@ function formatDate(iso?: string | null): string | null {
 function MetaChip({
   icon,
   children,
+  customStyle = "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400",
 }: {
   icon: React.ReactNode;
   children: React.ReactNode;
+  customStyle?: string;
 }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-[12px] font-medium text-slate-600 dark:text-slate-400">
+    <span className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-[12px] font-medium ${customStyle}`}>
       {icon}
       {children}
     </span>
@@ -286,7 +289,6 @@ export default function ApplicationCard({
     const oldStatus = app.status;
 
     try {
-      // 1. Päivitetään uusi tila applications-tauluun
       const { error: appError } = await supabase
         .from("applications")
         .update({ status: newStatus })
@@ -294,7 +296,6 @@ export default function ApplicationCard({
 
       if (appError) throw appError;
 
-      // 2. Kirjataan muutos historiaan (kuten dialogissa)
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -309,7 +310,7 @@ export default function ApplicationCard({
       }
 
       toast.success(`Hakemuksen tila päivitetty: ${newStatus}`);
-      onChange(); // Päivittää käyttöliittymän
+      onChange();
     } catch (error) {
       console.error("Virhe tilan päivityksessä:", error);
       toast.error("Tilan päivitys epäonnistui.");
@@ -355,12 +356,12 @@ export default function ApplicationCard({
   const description = app.job_description || "";
   const isOffer = app.status === "Tarjous";
   const salary = formatSalary(app.salary_min, app.salary_max);
-  const deadline = formatDate(app.valid_through);
   const employmentLabel = app.employment_type
     ? (EMPLOYMENT_TYPE_FI[app.employment_type] ?? app.employment_type)
     : null;
 
   const deadlineDate = app.valid_through ? new Date(app.valid_through) : null;
+  const deadline = formatDate(app.valid_through);
 
   const isExpired =
     deadlineDate !== null && deadlineDate.getTime() < Date.now();
@@ -370,7 +371,9 @@ export default function ApplicationCard({
     !isExpired &&
     (deadlineDate.getTime() - Date.now()) / 86_400_000 <= 3;
 
+  const isSavedOnly = app.status === "Tallennettu";
   const appliedDate = formatDate(app.applied_date);
+  const createdDate = formatDate(app.created_at);
 
   return (
     <div
@@ -383,18 +386,24 @@ export default function ApplicationCard({
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           {isDemo ? (
             <DemoCompanyLogo logo={app.company_logo} company={app.company} />
           ) : (
             <CompanyLogo logo={app.company_logo} company={app.company} />
           )}
-          <div>
-            <h2 className="text-[17px] font-semibold leading-snug text-slate-900 dark:text-slate-50">
+          <div className="min-w-0">
+            <h2 className="text-[17px] font-semibold leading-snug text-slate-900 dark:text-slate-50 truncate">
               {app.company}
             </h2>
-            <p className="text-[14px] text-slate-500 dark:text-slate-400">
+            <p className="text-[14px] text-slate-500 dark:text-slate-400 truncate">
               {app.job_title}
+            </p>
+            
+            {/* PAIKKAKUNTA VAKIONA TEKSTINÄ (ILMAN PILL-TAUSTAA) */}
+            <p className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">
+              <IconPin />
+              <span>{app.location || "Sijainti ei tiedossa"}</span>
             </p>
           </div>
         </div>
@@ -406,24 +415,36 @@ export default function ApplicationCard({
             setOpen(false);
           }}
           title="Muokkaa ilmoitusta"
-          className="p-2 rounded-lg text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-blue-400 transition-colors"
+          className="p-2 rounded-lg text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-blue-400 transition-colors shrink-0"
         >
           <SquarePen size={16} strokeWidth={2} />
         </button>
       </div>
 
-      {/* Meta chips */}
-      <div className="mt-3 flex flex-wrap gap-2 ">
-        {app.location && <MetaChip icon={<IconPin />}>{app.location}</MetaChip>}
-        {appliedDate && (
-          <MetaChip icon={<IconCalendar />}>Haettu {appliedDate}</MetaChip>
-        )}
-        {employmentLabel && (
-          <MetaChip icon={<IconBriefcase />}>{employmentLabel}</MetaChip>
-        )}
-        {salary && <MetaChip icon={<IconCurrency />}>{salary}</MetaChip>}
+      {/* Meta chips (Päivämäärät värikoodattuina, poistettu tuplapaikkakunta) */}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {/* Tallennettu vs Haettu tarkistus */}
+        {isSavedOnly ? (
+          <MetaChip
+            icon={<IconCalendar />}
+            customStyle="bg-amber-50/70 text-amber-700 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30 font-medium"
+          >
+            Tallennettu {createdDate || appliedDate}
+          </MetaChip>
+        ) : appliedDate ? (
+          <MetaChip
+            icon={<IconCalendar />}
+            customStyle="bg-emerald-50/70 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30 font-medium"
+          >
+            Haettu {appliedDate}
+          </MetaChip>
+        ) : null}
+
         {deadline && (
-          <MetaChip icon={<IconClock />}>
+          <MetaChip
+            icon={<IconClock />}
+            customStyle="bg-amber-50/70 text-amber-700 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30 font-medium"
+          >
             {isExpired ? (
               <span className="font-semibold text-red-600 dark:text-red-400">
                 Haku päättynyt {deadline}
@@ -436,12 +457,17 @@ export default function ApplicationCard({
                     : ""
                 }
               >
-                Haku päättyy {deadline}
+                Päättyy {deadline}
                 {isUrgent && " ⚠️"}
               </span>
             )}
           </MetaChip>
         )}
+
+        {employmentLabel && (
+          <MetaChip icon={<IconBriefcase />}>{employmentLabel}</MetaChip>
+        )}
+        {salary && <MetaChip icon={<IconCurrency />}>{salary}</MetaChip>}
       </div>
 
       {/* Divider */}
