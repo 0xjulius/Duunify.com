@@ -54,10 +54,12 @@ export default function QuickAddApplication({
   const [loading, setLoading] = useState(false);
   const [autoFilling, setAutoFilling] = useState(false);
   const [showFields, setShowFields] = useState(false);
+  const [dataFetched, setDataFetched] = useState(false); // Uusi tila kertomaan onnistuneesta hausta
   const [formData, setFormData] = useState(initialFormData);
 
   const handleModalClose = () => {
     setShowFields(false);
+    setDataFetched(false);
     setFormData(initialFormData);
     onOpenChange(false);
   };
@@ -128,6 +130,7 @@ export default function QuickAddApplication({
             ? data.datePosted.split("T")[0]
             : prev.date_posted,
         }));
+        setDataFetched(true); // Merkitään tiedot haetuiksi
         toast.success("Tiedot haettu automaattisesti!");
       } else {
         toast.error(
@@ -205,6 +208,7 @@ export default function QuickAddApplication({
       toast.success("Hakemus tallennettu onnistuneesti!");
 
       setShowFields(false);
+      setDataFetched(false);
       setFormData(initialFormData);
 
       if (onSuccess) onSuccess();
@@ -257,7 +261,7 @@ export default function QuickAddApplication({
               </button>
             </div>
 
-            {/* Lomake (Sopeutuu sisällön mukaan, vieritettävissä vain tarvittaessa) */}
+            {/* Lomake */}
             <form
               onSubmit={handleSubmit}
               className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5"
@@ -294,6 +298,26 @@ export default function QuickAddApplication({
                     </span>
                   </button>
                 </div>
+
+                {/* JOS TIEDOT ON HAKUONNISTUNEESTI HAKU -> NÄYTETÄÄN 50/50 NAPIT TÄSSÄ */}
+                {dataFetched && !autoFilling && (
+                  <div className="flex gap-2 pt-1 animate-in fade-in duration-200">
+                    <button
+                      type="button"
+                      onClick={handleModalClose}
+                      className="w-1/2 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl transition cursor-pointer"
+                    >
+                      Peruuta
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-1/2 px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
+                    >
+                      {loading ? "Tallennetaan..." : "Tallenna"}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Vaihtoehto syöttää tiedot käsin ilman automaattitäyttöä */}
@@ -553,26 +577,24 @@ export default function QuickAddApplication({
                       className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                     />
                   </div>
-                </div>
-              )}
 
-              {/* Normaalisti rullautuva painikerivi lomakkeen lopussa */}
-              {showFields && !autoFilling && (
-                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={handleModalClose}
-                    className="px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
-                  >
-                    Peruuta
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
-                  >
-                    {loading ? "Tallennetaan..." : "Tallenna hakemus"}
-                  </button>
+                  {/* Normaali painikerivi manuaalisesti täytettäessä */}
+                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={handleModalClose}
+                      className="px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
+                    >
+                      Peruuta
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
+                    >
+                      {loading ? "Tallennetaan..." : "Tallenna hakemus"}
+                    </button>
+                  </div>
                 </div>
               )}
             </form>

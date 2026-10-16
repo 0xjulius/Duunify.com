@@ -121,7 +121,9 @@ function MetaChip({
   customStyle?: string;
 }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-[12px] font-medium ${customStyle}`}>
+    <span
+      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-[12px] font-medium ${customStyle}`}
+    >
       {icon}
       {children}
     </span>
@@ -399,7 +401,7 @@ export default function ApplicationCard({
             <p className="text-[14px] text-slate-500 dark:text-slate-400 truncate">
               {app.job_title}
             </p>
-            
+
             {/* PAIKKAKUNTA VAKIONA TEKSTINÄ (ILMAN PILL-TAUSTAA) */}
             <p className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">
               <IconPin />
@@ -596,7 +598,7 @@ export default function ApplicationCard({
           />
 
           <textarea
-            value={editForm.notes}
+            value={editForm.notes || ""}
             onChange={(e) =>
               setEditForm({ ...editForm, notes: e.target.value })
             }
