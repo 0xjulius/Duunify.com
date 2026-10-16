@@ -114,7 +114,9 @@ function DialogMetaChip({
   customStyle?: string;
 }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-medium border shrink-0 whitespace-nowrap ${customStyle}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-medium border shrink-0 whitespace-nowrap ${customStyle}`}
+    >
       {icon}
       {children}
     </span>
@@ -438,7 +440,6 @@ export default function ApplicationDialog({
     ? (EMPLOYMENT_TYPE_FI[app.employment_type] ?? app.employment_type)
     : null;
 
-  // LOGIIKKA: Tarkistetaan, onko hakemus vain tallennettu vai haettu
   const isSavedOnly = currentStatus === "Tallennettu";
   const appliedEvent = history.find((h) => h.new_status === "Haettu");
   const actualAppliedDate = appliedEvent?.created_at || app.applied_date;
@@ -495,8 +496,7 @@ export default function ApplicationDialog({
                 <h2 className="text-xs md:text-base font-medium text-slate-500 dark:text-slate-400 truncate mt-0.5">
                   {app.job_title}
                 </h2>
-                
-                {/* PAIKKAKUNTA VAKIONA */}
+
                 <p className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">
                   <MapPin size={12} className="text-indigo-500 shrink-0" />
                   <span>{app.location || "Sijainti ei tiedossa"}</span>
@@ -506,20 +506,30 @@ export default function ApplicationDialog({
 
             {/* STATUS & LINKKI */}
             <div className="flex flex-wrap items-center gap-2.5">
-              <div className="relative inline-block text-left" ref={statusMenuRef}>
+              <div
+                className="relative inline-block text-left"
+                ref={statusMenuRef}
+              >
                 <button
                   onClick={() => setStatusMenuOpen(!statusMenuOpen)}
                   disabled={updatingStatus}
                   className={`flex items-center gap-1.5 cursor-pointer rounded-xl px-3 py-1.5 text-xs font-semibold uppercase tracking-wide border outline-none transition-all hover:brightness-95 dark:hover:brightness-110 ${getStatusStyles(currentStatus)}`}
                 >
-                  {currentStatus === "Tarjous" ? "🎉 Työtarjous" : currentStatus}
+                  {currentStatus === "Tarjous"
+                    ? "🎉 Työtarjous"
+                    : currentStatus}
                   <svg
                     className={`w-3.5 h-3.5 transition-transform duration-200 ${statusMenuOpen ? "rotate-180" : ""}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2.5"
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </button>
 
@@ -560,7 +570,6 @@ export default function ApplicationDialog({
 
           {/* KESKEISET PÄIVÄMÄÄRÄT JA METADATA */}
           <div className="flex items-center gap-2 pt-2.5 overflow-x-auto no-scrollbar scroll-smooth -mx-5 px-5 md:mx-0 md:px-0 md:flex-wrap">
-            {/* LOGIIKKA: JOS TILA ON "TALLENNETTU" -> NÄYTETÄÄN TALLENNETTU */}
             {isSavedOnly ? (
               <DialogMetaChip
                 icon={<Calendar size={13} className="text-amber-500" />}
@@ -569,7 +578,6 @@ export default function ApplicationDialog({
                 Tallennettu {formatDateShort(createdDate || actualAppliedDate)}
               </DialogMetaChip>
             ) : actualAppliedDate ? (
-              /* JOS HAKEMUS ON HAETTU / ETENEMÄSSÄ -> NÄYTETÄÄN HAETTU */
               <DialogMetaChip
                 icon={<Calendar size={13} className="text-emerald-500" />}
                 customStyle="bg-emerald-50/70 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30 font-medium"
@@ -588,13 +596,17 @@ export default function ApplicationDialog({
             )}
 
             {employmentLabel && (
-              <DialogMetaChip icon={<Briefcase size={13} className="text-slate-400" />}>
+              <DialogMetaChip
+                icon={<Briefcase size={13} className="text-slate-400" />}
+              >
                 {employmentLabel}
               </DialogMetaChip>
             )}
 
             {salary && (
-              <DialogMetaChip icon={<Coins size={13} className="text-slate-400" />}>
+              <DialogMetaChip
+                icon={<Coins size={13} className="text-slate-400" />}
+              >
                 {salary}
               </DialogMetaChip>
             )}
@@ -604,23 +616,30 @@ export default function ApplicationDialog({
         {/* VIERITETTÄVÄ ALUE */}
         <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-6 text-left">
           {/* LIITETIEDOSTOT & MUISTIINPANOT GRID */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-            
-            {/* LIITETIEDOSTOT (COLLAPSIBLE / HAITARI) */}
-            <div className="space-y-2.5 flex flex-col">
-              <div className="flex items-center justify-between">
+          <div className="grid grid-cols-2 gap-3 md:gap-6">
+            {/* LIITETIEDOSTOT */}
+            <div className="space-y-2.5 flex flex-col min-w-0">
+              {/* Tasattu otsikkorivi */}
+              <div className="h-7 flex items-center justify-between">
                 <button
-                  onClick={() => setIsAttachmentsOpen(!isAttachmentsOpen)}
-                  className="flex items-center gap-2 font-semibold text-sm text-slate-900 dark:text-slate-50 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                  onClick={() => {
+                    const newState = !isAttachmentsOpen;
+                    setIsAttachmentsOpen(newState);
+                    setIsNotesOpen(newState);
+                  }}
+                  className="flex items-center gap-1.5 font-semibold text-xs sm:text-sm text-slate-900 dark:text-slate-50 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition truncate"
                 >
-                  <Paperclip size={16} className="text-slate-400" />
-                  <span>Liitetiedostot</span>
+                  <Paperclip size={16} className="text-slate-400 shrink-0" />
+                  <span className="truncate">Liitetiedostot</span>
                   {(currentCvUrl || isDemo) && !isAttachmentsOpen && (
-                    <span className="w-2 h-2 rounded-full bg-indigo-500" title="Sisältää liitteen" />
+                    <span
+                      className="w-2 h-2 rounded-full bg-indigo-500 shrink-0"
+                      title="Sisältää liitteen"
+                    />
                   )}
                   <ChevronDown
                     size={16}
-                    className={`text-slate-400 transition-transform duration-200 ${
+                    className={`text-slate-400 transition-transform duration-200 shrink-0 ${
                       isAttachmentsOpen ? "rotate-180" : ""
                     }`}
                   />
@@ -631,26 +650,36 @@ export default function ApplicationDialog({
                 <div className="animate-in fade-in duration-200">
                   {currentCvUrl ? (
                     downloadUrl ? (
-                      <div className="flex items-center justify-between p-3 rounded-2xl border bg-slate-50/50 border-slate-200/80 dark:bg-slate-800/40 dark:border-slate-700/60 w-full">
-                        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 truncate mr-4">
-                          <FileText size={16} className="text-slate-400 shrink-0" />
-                          <span className="truncate">{currentCvUrl.split("/").pop()}</span>
+                      <div className="flex items-center justify-between p-2.5 sm:p-3 rounded-2xl border bg-slate-50/50 border-slate-200/80 dark:bg-slate-800/40 dark:border-slate-700/60 w-full">
+                        <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600 dark:text-slate-300 truncate mr-2">
+                          <FileText
+                            size={16}
+                            className="text-slate-400 shrink-0"
+                          />
+                          <span className="truncate">
+                            {currentCvUrl.split("/").pop()}
+                          </span>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1 shrink-0">
                           <Button
                             asChild
                             size="sm"
                             variant="outline"
-                            className="h-8 gap-1 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-xs"
+                            className="h-7 sm:h-8 gap-1 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-xs px-2"
                           >
-                            <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
-                              <Download size={12} /> Avaa
+                            <a
+                              href={downloadUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Download size={12} />{" "}
+                              <span className="hidden sm:inline">Avaa</span>
                             </a>
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="text-rose-600 hover:text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 h-8 w-8 p-0"
+                            className="text-rose-600 hover:text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 h-7 w-7 sm:h-8 sm:w-8 p-0"
                             onClick={deleteAttachment}
                             disabled={deleting || isDemo}
                           >
@@ -659,21 +688,23 @@ export default function ApplicationDialog({
                         </div>
                       </div>
                     ) : (
-                      <p className="text-xs text-slate-400 animate-pulse">Luodaan suojattua linkkiä...</p>
+                      <p className="text-xs text-slate-400 animate-pulse">
+                        Luodaan linkkiä...
+                      </p>
                     )
                   ) : isDemo ? (
-                    <div className="w-full p-4 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/20 text-center">
-                      <p className="text-sm text-indigo-500 dark:text-indigo-400 font-medium">
-                        tyohakemus_yritys.pdf <span className="text-xs text-slate-400 ml-1">(225KB)</span>
+                    <div className="w-full p-3 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/20 text-center">
+                      <p className="text-xs sm:text-sm text-indigo-500 dark:text-indigo-400 font-medium truncate">
+                        tyohakemus_yritys.pdf
                       </p>
                     </div>
                   ) : (
                     <div className="w-full">
                       <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-400 rounded-2xl cursor-pointer bg-slate-50/50 dark:bg-slate-800/20 transition-all">
-                        <div className="flex flex-col items-center justify-center p-4 text-center">
-                          <Upload size={18} className="text-slate-400 mb-1" />
+                        <div className="flex flex-col items-center justify-center p-2 text-center">
+                          <Upload size={16} className="text-slate-400 mb-1" />
                           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                            {uploading ? "Ladataan..." : "Klikkaa lisätäksesi liite"}
+                            {uploading ? "Ladataan..." : "Lisää liite"}
                           </p>
                         </div>
                         <input
@@ -691,21 +722,29 @@ export default function ApplicationDialog({
               )}
             </div>
 
-            {/* MUISTIINPANOT (COLLAPSIBLE / HAITARI) */}
-            <div className="space-y-2.5 flex flex-col">
-              <div className="flex items-center justify-between">
+            {/* MUISTIINPANOT */}
+            <div className="space-y-2.5 flex flex-col min-w-0">
+              {/* Tasattu otsikkorivi */}
+              <div className="h-7 flex items-center justify-between">
                 <button
-                  onClick={() => setIsNotesOpen(!isNotesOpen)}
-                  className="flex items-center gap-2 font-semibold text-sm text-slate-900 dark:text-slate-50 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                  onClick={() => {
+                    const newState = !isNotesOpen;
+                    setIsNotesOpen(newState);
+                    setIsAttachmentsOpen(newState);
+                  }}
+                  className="flex items-center gap-1.5 font-semibold text-xs sm:text-sm text-slate-900 dark:text-slate-50 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition truncate"
                 >
-                  <FileText size={16} className="text-slate-400" />
-                  <span>Muistiinpanot</span>
+                  <FileText size={16} className="text-slate-400 shrink-0" />
+                  <span className="truncate">Muistiinpanot</span>
                   {(app.notes || editedNotes) && !isNotesOpen && (
-                    <span className="w-2 h-2 rounded-full bg-indigo-500" title="Sisältää muistiinpanoja" />
+                    <span
+                      className="w-2 h-2 rounded-full bg-indigo-500 shrink-0"
+                      title="Sisältää muistiinpanoja"
+                    />
                   )}
                   <ChevronDown
                     size={16}
-                    className={`text-slate-400 transition-transform duration-200 ${
+                    className={`text-slate-400 transition-transform duration-200 shrink-0 ${
                       isNotesOpen ? "rotate-180" : ""
                     }`}
                   />
@@ -716,58 +755,58 @@ export default function ApplicationDialog({
                     variant="ghost"
                     size="sm"
                     onClick={() => setIsEditingNotes(true)}
-                    className="h-6 text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 px-2 cursor-pointer"
+                    className="h-6 text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 px-1.5 cursor-pointer shrink-0"
                   >
                     Muokkaa
                   </Button>
                 )}
-
-                {isEditingNotes && (
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setEditedNotes(app.notes || "");
-                        setIsEditingNotes(false);
-                      }}
-                      className="h-6 text-xs text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 px-2 cursor-pointer"
-                    >
-                      Peruuta
-                    </Button>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={handleSaveNotes}
-                      disabled={savingNotes}
-                      className="h-6 text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-2 cursor-pointer"
-                    >
-                      {savingNotes ? "Tallentaa..." : "Tallenna"}
-                    </Button>
-                  </div>
-                )}
               </div>
 
               {isNotesOpen && (
-                <div className="animate-in fade-in duration-200">
+                <div className="animate-in fade-in duration-200 space-y-2">
                   {isEditingNotes ? (
-                    <textarea
-                      value={editedNotes}
-                      onChange={(e) => setEditedNotes(e.target.value)}
-                      className="w-full h-24 p-3 text-sm bg-white dark:bg-[#181b2a] border border-slate-200 dark:border-slate-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                      placeholder="Kirjoita muistiinpanoja hakemuksesta..."
-                      autoFocus
-                    />
+                    <>
+                      <textarea
+                        value={editedNotes}
+                        onChange={(e) => setEditedNotes(e.target.value)}
+                        className="w-full h-24 p-2.5 text-xs sm:text-sm bg-white dark:bg-[#181b2a] border border-indigo-500 dark:border-indigo-500 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                        placeholder="Kirjoita muistiinpanoja..."
+                        autoFocus
+                      />
+                      {/* Selkeät 50/50 painikkeet syöttökentän ALAPUOLELLA */}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditedNotes(app.notes || "");
+                            setIsEditingNotes(false);
+                          }}
+                          className="w-1/2 py-2 px-3 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition cursor-pointer"
+                        >
+                          Peruuta
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveNotes}
+                          disabled={savingNotes}
+                          className="w-1/2 py-2 px-3 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition cursor-pointer disabled:opacity-50"
+                        >
+                          {savingNotes ? "Tallennetaan..." : "Tallenna"}
+                        </button>
+                      </div>
+                    </>
                   ) : (
-                    <div 
-                      className="p-4 bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/60 text-sm h-24 overflow-y-auto cursor-pointer hover:border-slate-300 dark:hover:border-slate-600 transition-colors"
+                    <div
+                      className="p-3 bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/60 text-xs sm:text-sm h-24 overflow-y-auto cursor-pointer hover:border-slate-300 dark:hover:border-slate-600 transition-colors"
                       onClick={() => setIsEditingNotes(true)}
                     >
                       {app.notes || editedNotes ? (
-                        <span className="whitespace-pre-wrap">{editedNotes || app.notes}</span>
+                        <span className="whitespace-pre-wrap">
+                          {editedNotes || app.notes}
+                        </span>
                       ) : (
                         <span className="italic text-slate-400">
-                          Ei muistiinpanoja. Klikkaa tästä lisätäksesi.
+                          Ei muistiinpanoja. Klikkaa tästä.
                         </span>
                       )}
                     </div>
@@ -775,7 +814,6 @@ export default function ApplicationDialog({
                 </div>
               )}
             </div>
-
           </div>
 
           {/* VÄLILEHDET */}
@@ -793,24 +831,36 @@ export default function ApplicationDialog({
                   className="rounded-xl text-xs md:text-sm font-medium py-2 px-1 transition-all truncate data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-slate-900 dark:data-[state=active]:text-slate-100 data-[state=active]:shadow-sm cursor-pointer"
                 >
                   <span className="sm:hidden">Eteneminen ({historyCount})</span>
-                  <span className="hidden sm:inline">Rekrytoinnin eteneminen ({historyCount})</span>
+                  <span className="hidden sm:inline">
+                    Rekrytoinnin eteneminen ({historyCount})
+                  </span>
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="description" className="focus-visible:outline-none">
-                <div className="text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed text-sm md:text-base pt-1">
+              {/* Työpaikkakuvaus adaptiivisella teeman taustalla */}
+              <TabsContent
+                value="description"
+                className="focus-visible:outline-none"
+              >
+                <div className="p-5 md:p-6 rounded-3xl bg-slate-100 dark:bg-[#0d0f1a] border border-slate-200 dark:border-slate-800 shadow-inner text-slate-800 dark:text-slate-300 whitespace-pre-wrap leading-relaxed text-sm md:text-base">
                   {app.job_description || "Ei kuvausta saatavilla."}
                 </div>
               </TabsContent>
 
-              <TabsContent value="history" className="focus-visible:outline-none">
+              <TabsContent
+                value="history"
+                className="focus-visible:outline-none"
+              >
                 <div className="pt-1">
                   {isDemo ? (
                     <div>
                       <div className="mb-4 text-center text-xs font-semibold text-amber-600 dark:text-amber-400/80 bg-amber-50 dark:bg-amber-500/10 py-2 px-3 rounded-xl border border-amber-200 dark:border-amber-500/20">
-                        Katsot demotilaa. Historia on esimerkki yritykselle {app.company}.
+                        Katsot demotilaa. Historia on esimerkki yritykselle{" "}
+                        {app.company}.
                       </div>
-                      <ApplicationHistory history={getDemoHistoryForApp(app.id) as any} />
+                      <ApplicationHistory
+                        history={getDemoHistoryForApp(app.id) as any}
+                      />
                     </div>
                   ) : loadingHistory ? (
                     <div className="text-center py-8 text-sm text-slate-400 animate-pulse">

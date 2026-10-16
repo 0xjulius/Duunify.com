@@ -230,7 +230,7 @@ export default function ApplicationCard({
     company: app.company,
     job_title: app.job_title,
     location: app.location,
-    notes: app.notes,
+    notes: app.notes || "",
     job_url: app.job_url || "",
   });
 
@@ -402,7 +402,6 @@ export default function ApplicationCard({
               {app.job_title}
             </p>
 
-            {/* PAIKKAKUNTA VAKIONA TEKSTINÄ (ILMAN PILL-TAUSTAA) */}
             <p className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">
               <IconPin />
               <span>{app.location || "Sijainti ei tiedossa"}</span>
@@ -423,9 +422,8 @@ export default function ApplicationCard({
         </button>
       </div>
 
-      {/* Meta chips (Päivämäärät värikoodattuina, poistettu tuplapaikkakunta) */}
+      {/* Meta chips */}
       <div className="mt-3 flex flex-wrap gap-2">
-        {/* Tallennettu vs Haettu tarkistus */}
         {isSavedOnly ? (
           <MetaChip
             icon={<IconCalendar />}
@@ -666,38 +664,42 @@ export default function ApplicationCard({
           <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
             Työpaikkakuvaus
           </p>
-          <div
-            className={`text-[14px] leading-relaxed text-slate-600 dark:text-slate-300 whitespace-pre-wrap overflow-hidden ${app.notes ? "line-clamp-3" : "line-clamp-6"}`}
-          >
-            {expanded
-              ? formatDescription(description)
-              : formatDescription(`${description.slice(0, 850)}…`)}
-          </div>
-
-          {description.length > 850 && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setOpen(true);
-              }}
-              className="mt-2 inline-flex items-center gap-1 text-[12px] font-semibold text-violet-600 dark:text-violet-400 hover:underline cursor-pointer"
+          
+       {/* Työpaikkakuvaus adaptiivisella taustalla (Light / Dark) */}
+          <div className="p-4 rounded-2xl bg-slate-100 dark:bg-[#0d0f1a] border border-slate-200 dark:border-slate-800 shadow-inner text-slate-800 dark:text-slate-300">
+            <div
+              className={`text-[13px] leading-relaxed whitespace-pre-wrap overflow-hidden ${app.notes ? "line-clamp-3" : "line-clamp-5"}`}
             >
-              {expanded ? "Näytä vähemmän" : "Lue lisää"}
-              <svg
-                className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                viewBox="0 0 24 24"
+              {expanded
+                ? formatDescription(description)
+                : formatDescription(`${description.slice(0, 600)}…`)}
+            </div>
+
+            {description.length > 600 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen(true);
+                }}
+                className="mt-2 inline-flex items-center gap-1 text-[12px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </button>
-          )}
+                {expanded ? "Näytä vähemmän" : "Lue lisää"}
+                <svg
+                  className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+            )}
+          </div>
 
           <div className="absolute bottom-5 left-5">
             <p className="text-[12px] text-slate-400 dark:text-slate-500 pointer-none">
