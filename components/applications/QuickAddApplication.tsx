@@ -222,7 +222,7 @@ export default function QuickAddApplication({
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -237,17 +237,16 @@ export default function QuickAddApplication({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 8 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="relative z-10 w-full max-w-2xl max-h-[90vh] flex flex-col bg-white dark:bg-[#181b26] rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden"
+            className="relative z-10 w-full max-w-2xl max-h-[85vh] flex flex-col bg-white dark:bg-[#181b26] rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden my-auto"
           >
             {/* Header */}
-            <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/20">
+            <div className="px-5 py-4 sm:px-6 sm:py-5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/20 shrink-0">
               <div>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   Lisää uusi työpaikka
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Tuo tiedot automaattisesti hakuilmoituksen linkistä tai syötä
-                  käsin.
+                  Tuo tiedot automaattisesti hakuilmoituksen linkistä tai syötä käsin.
                 </p>
               </div>
               <button
@@ -258,9 +257,10 @@ export default function QuickAddApplication({
               </button>
             </div>
 
+            {/* Lomake (Sopeutuu sisällön mukaan, vieritettävissä vain tarvittaessa) */}
             <form
               onSubmit={handleSubmit}
-              className="flex-1 overflow-y-auto p-6 space-y-5"
+              className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5"
             >
               {/* Osoite osio */}
               <div className="p-3.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 space-y-3">
@@ -298,7 +298,7 @@ export default function QuickAddApplication({
 
               {/* Vaihtoehto syöttää tiedot käsin ilman automaattitäyttöä */}
               {!showFields && (
-                <div className="text-center pt-2">
+                <div className="text-center pt-1 pb-1">
                   <button
                     type="button"
                     onClick={() => setShowFields(true)}
@@ -553,23 +553,26 @@ export default function QuickAddApplication({
                       className="w-full px-3 py-2 text-sm rounded-xl bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                     />
                   </div>
+                </div>
+              )}
 
-                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
-                    <button
-                      type="button"
-                      onClick={handleModalClose}
-                      className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
-                    >
-                      Peruuta
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
-                    >
-                      {loading ? "Tallennetaan..." : "Tallenna hakemus"}
-                    </button>
-                  </div>
+              {/* Normaalisti rullautuva painikerivi lomakkeen lopussa */}
+              {showFields && !autoFilling && (
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={handleModalClose}
+                    className="px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
+                  >
+                    Peruuta
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
+                  >
+                    {loading ? "Tallennetaan..." : "Tallenna hakemus"}
+                  </button>
                 </div>
               )}
             </form>
