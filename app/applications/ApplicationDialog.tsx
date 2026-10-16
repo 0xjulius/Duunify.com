@@ -107,7 +107,7 @@ function formatDialogSalary(
 function DialogMetaChip({
   icon,
   children,
-  customStyle = "bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-slate-200/60 dark:border-slate-700/60",
+  customStyle = "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 font-semibold",
 }: {
   icon: React.ReactNode;
   children: React.ReactNode;
@@ -115,7 +115,7 @@ function DialogMetaChip({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-medium border shrink-0 whitespace-nowrap ${customStyle}`}
+      className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-semibold border shrink-0 whitespace-nowrap ${customStyle}`}
     >
       {icon}
       {children}
@@ -210,7 +210,6 @@ export default function ApplicationDialog({
       setEditedNotes(notesVal);
       setIsEditingNotes(false);
 
-      // JOS jommassa kummassa on sisältöä (tai on demo), avataan MOLEMMAT!
       const hasContent = Boolean(cvVal) || Boolean(notesVal.trim()) || isDemo;
       setIsAttachmentsOpen(hasContent);
       setIsNotesOpen(hasContent);
@@ -447,6 +446,13 @@ export default function ApplicationDialog({
   const actualAppliedDate = appliedEvent?.created_at || app.applied_date;
   const createdDate = app.created_at;
 
+  const deadlineDate = app.valid_through ? new Date(app.valid_through) : null;
+  const isExpired = deadlineDate !== null && deadlineDate.getTime() < Date.now();
+  const isUrgent =
+    deadlineDate !== null &&
+    !isExpired &&
+    (deadlineDate.getTime() - Date.now()) / 86_400_000 <= 3;
+
   const historyCount = isDemo
     ? getDemoHistoryForApp(app.id).length
     : history.length;
@@ -574,15 +580,15 @@ export default function ApplicationDialog({
           <div className="flex items-center gap-2 pt-2.5 overflow-x-auto no-scrollbar scroll-smooth -mx-5 px-5 md:mx-0 md:px-0 md:flex-wrap">
             {isSavedOnly ? (
               <DialogMetaChip
-                icon={<Calendar size={13} className="text-amber-500" />}
-                customStyle="bg-amber-50/70 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30 font-medium"
+                icon={<Calendar size={13} />}
+                customStyle="bg-blue-100 text-blue-900 border border-blue-300 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/40 font-semibold"
               >
                 Tallennettu {formatDateShort(createdDate || actualAppliedDate)}
               </DialogMetaChip>
             ) : actualAppliedDate ? (
               <DialogMetaChip
-                icon={<Calendar size={13} className="text-emerald-500" />}
-                customStyle="bg-emerald-50/70 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30 font-medium"
+                icon={<Calendar size={13} />}
+                customStyle="bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40 font-semibold"
               >
                 Haettu {formatDateShort(actualAppliedDate)}
               </DialogMetaChip>
@@ -590,25 +596,34 @@ export default function ApplicationDialog({
 
             {app.valid_through && (
               <DialogMetaChip
-                icon={<Clock size={13} className="text-amber-500" />}
-                customStyle="bg-amber-50/70 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30 font-medium"
+                icon={<Clock size={13} />}
+                customStyle={
+                  isExpired || isUrgent
+                    ? "bg-rose-100 text-rose-900 border border-rose-300 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/40 font-semibold"
+                    : "bg-slate-100 text-slate-800 border border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 font-semibold"
+                }
               >
-                Päättyy {formatDateShort(app.valid_through)}
+                {isExpired ? (
+                  <span className="font-bold">
+                    Haku päättynyt {formatDateShort(app.valid_through)}
+                  </span>
+                ) : (
+                  <span className={isUrgent ? "font-bold" : ""}>
+                    Päättyy {formatDateShort(app.valid_through)}
+                    {isUrgent && " ⚠️"}
+                  </span>
+                )}
               </DialogMetaChip>
             )}
 
             {employmentLabel && (
-              <DialogMetaChip
-                icon={<Briefcase size={13} className="text-slate-400" />}
-              >
+              <DialogMetaChip icon={<Briefcase size={13} />}>
                 {employmentLabel}
               </DialogMetaChip>
             )}
 
             {salary && (
-              <DialogMetaChip
-                icon={<Coins size={13} className="text-slate-400" />}
-              >
+              <DialogMetaChip icon={<Coins size={13} />}>
                 {salary}
               </DialogMetaChip>
             )}
@@ -621,7 +636,6 @@ export default function ApplicationDialog({
           <div className="grid grid-cols-2 gap-3 md:gap-6 items-start">
             {/* LIITETIEDOSTOT */}
             <div className="space-y-2.5 flex flex-col min-w-0">
-              {/* Kiinteä korkeus otsikkoriville, jotta se vastaa oikeaa puolta */}
               <div className="h-7 flex items-center justify-between">
                 <button
                   onClick={() => {

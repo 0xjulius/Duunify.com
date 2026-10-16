@@ -114,7 +114,7 @@ function formatDate(iso?: string | null): string | null {
 function MetaChip({
   icon,
   children,
-  customStyle = "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400",
+  customStyle = "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 font-semibold",
 }: {
   icon: React.ReactNode;
   children: React.ReactNode;
@@ -122,7 +122,7 @@ function MetaChip({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-[12px] font-medium ${customStyle}`}
+      className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[12px] font-semibold ${customStyle}`}
     >
       {icon}
       {children}
@@ -422,38 +422,42 @@ export default function ApplicationCard({
         </button>
       </div>
 
-      {/* Meta chips */}
+    {/* Meta chips */}
       <div className="mt-3 flex flex-wrap gap-2">
         {isSavedOnly ? (
           <MetaChip
             icon={<IconCalendar />}
-            customStyle="bg-amber-50/70 text-amber-700 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30 font-medium"
+            customStyle="bg-blue-100 text-blue-900 border border-blue-300 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/40 font-semibold"
           >
             Tallennettu {createdDate || appliedDate}
           </MetaChip>
         ) : appliedDate ? (
           <MetaChip
             icon={<IconCalendar />}
-            customStyle="bg-emerald-50/70 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30 font-medium"
+            customStyle="bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40 font-semibold"
           >
             Haettu {appliedDate}
           </MetaChip>
         ) : null}
 
-        {deadline && (
+      {deadline && (
           <MetaChip
             icon={<IconClock />}
-            customStyle="bg-amber-50/70 text-amber-700 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30 font-medium"
+            customStyle={
+              isExpired || isUrgent
+                ? "bg-rose-100 text-rose-900 border border-rose-300 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/40 font-semibold"
+                : "bg-slate-100 text-slate-800 border border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 font-semibold"
+            }
           >
             {isExpired ? (
-              <span className="font-semibold text-red-600 dark:text-red-400">
+              <span className="font-bold text-rose-900 dark:text-rose-300">
                 Haku päättynyt {deadline}
               </span>
             ) : (
               <span
                 className={
                   isUrgent
-                    ? "font-semibold text-orange-600 dark:text-orange-400"
+                    ? "font-bold text-rose-900 dark:text-rose-300"
                     : ""
                 }
               >
@@ -465,9 +469,21 @@ export default function ApplicationCard({
         )}
 
         {employmentLabel && (
-          <MetaChip icon={<IconBriefcase />}>{employmentLabel}</MetaChip>
+          <MetaChip 
+            icon={<IconBriefcase />}
+            customStyle="bg-slate-100 text-slate-800 border border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 font-semibold"
+          >
+            {employmentLabel}
+          </MetaChip>
         )}
-        {salary && <MetaChip icon={<IconCurrency />}>{salary}</MetaChip>}
+        {salary && (
+          <MetaChip 
+            icon={<IconCurrency />}
+            customStyle="bg-slate-100 text-slate-800 border border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 font-semibold"
+          >
+            {salary}
+          </MetaChip>
+        )}
       </div>
 
       {/* Divider */}
@@ -665,7 +681,6 @@ export default function ApplicationCard({
             Työpaikkakuvaus
           </p>
           
-       {/* Työpaikkakuvaus adaptiivisella taustalla (Light / Dark) */}
           <div className="p-4 rounded-2xl bg-slate-100 dark:bg-[#0d0f1a] border border-slate-200 dark:border-slate-800 shadow-inner text-slate-800 dark:text-slate-300">
             <div
               className={`text-[13px] leading-relaxed whitespace-pre-wrap overflow-hidden ${app.notes ? "line-clamp-3" : "line-clamp-5"}`}
