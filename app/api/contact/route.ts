@@ -12,6 +12,22 @@ function escapeHtml(input: string) {
     .replace(/'/g, "&#39;");
 }
 
+// Apufunktio bottien tuottamien satunnaisjonojen (gibberish) havaitsemiseen
+function isGibberish(text: string): boolean {
+  if (!text) return false;
+  const trimmed = text.trim();
+  // Jos merkkijono on yli 15 merkkiä pitkä eikä sisällä yhtään välilyöntiä tai yhdysviivaa (tyypillinen bottien generoima sotku)
+  if (trimmed.length > 15 && !trimmed.includes(" ") && !trimmed.includes("-")) {
+    return true;
+  }
+  // Jos siinä on liikaa isoja kirjaimia ilman välilyöntejä
+  const upperCount = (trimmed.match(/[A-Z]/g) || []).length;
+  if (trimmed.length > 10 && upperCount / trimmed.length > 0.6) {
+    return true;
+  }
+  return false;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -23,7 +39,6 @@ export async function POST(req: NextRequest) {
       "Tuntematon";
 
     // 1. AJETAAN RATE LIMIT IHAN ENSIMMÄISEKSI
-    // Näin spämmerit estetään Upstashilla ennen kuin mitään muuta edes tarkistetaan.
     const { success } = await ratelimit.limit(`contact_${ip}`);
 
     if (!success) {
@@ -33,30 +48,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. TARKISTETAAN HONEYPOT VASTA RATE LIMITIN JÄLKEEN
+    // 2. TARKISTETAAN HONEYPOT
     if (website) {
-      // Tallenna lokiin tiedot, jotta näet kuka yritti ja milloin
       console.warn("Botti havaittu (honeypot):", {
         ip: ip,
         userAgent: req.headers.get("user-agent"),
         websiteValue: website,
       });
-
-      // Palautamme onnistumisen, jotta botti luulee onnistuneensa
       return NextResponse.json({ success: true });
     }
-
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    const admin = createAdminClient();
-
-    const userAgent = req.headers.get("user-agent") ?? "Tuntematon";
-    const referer = req.headers.get("referer") ?? "Ei refereriä";
-    const language = req.headers.get("accept-language") ?? "Tuntematon";
-
-    const country = req.headers.get("x-vercel-ip-country") ?? "Tuntematon";
-    const region =
-      req.headers.get("x-vercel-ip-country-region") ?? "Tuntematon";
-    const city = req.headers.get("x-vercel-ip-city") ?? "Tuntematon";
 
     if (
       typeof name !== "string" ||
@@ -80,6 +80,13 @@ export async function POST(req: NextRequest) {
         { error: "Kaikki kentät ovat pakollisia." },
         { status: 400 },
       );
+    }
+
+    // 3. UUSI: TARKISTETAAN GIBBERISH (Estää esimerkkisi kaltaiset bottiviestit)
+    if (isGibberish(trimmedName) || isGibberish(trimmedSubject)) {
+      console.warn("Botti estetty (gibberish-suodatus):", { ip, name: trimmedName, subject: trimmedSubject });
+      // Palautetaan hämäykseksi onnistuminen, jotta botti luulee viestin menneen läpi
+      return NextResponse.json({ success: true });
     }
 
     if (trimmedName.length > 100) {
@@ -109,7 +116,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Tallennetaan tietokantaan päivitetyillä tiedoilla
+    // Tallennetaan tietokantaan
     const { data: savedMessage, error: dbError } = await admin
       .from("contact_messages")
       .insert({
@@ -130,7 +137,6 @@ export async function POST(req: NextRequest) {
 
     if (dbError) {
       console.error("DB INSERT ERROR:", dbError);
-
       return NextResponse.json(
         { error: "Viestin tallennus epäonnistui." },
         { status: 500 },
@@ -143,6 +149,18 @@ export async function POST(req: NextRequest) {
       console.error("CONTACT_RECEIVER_EMAIL puuttuu.");
       return NextResponse.json({ success: true });
     }
+
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const admin = createAdminClient();
+
+    const userAgent = req.headers.get("user-agent") ?? "Tuntematon";
+    const referer = req.headers.get("referer") ?? "Ei refereriä";
+    const language = req.headers.get("accept-language") ?? "Tuntematon";
+
+    const country = req.headers.get("x-vercel-ip-country") ?? "Tuntematon";
+    const region =
+      req.headers.get("x-vercel-ip-country-region") ?? "Tuntematon";
+    const city = req.headers.get("x-vercel-ip-city") ?? "Tuntematon";
 
     try {
       const { data, error } = await resend.emails.send({
@@ -181,42 +199,25 @@ export async function POST(req: NextRequest) {
   `,
       });
 
-      console.log("Resend response:", data);
-
       if (error) {
         console.error("Resend error:", error);
         throw error;
       }
 
-      const { error: updateError } = await admin
+      await admin
         .from("contact_messages")
-        .update({
-          email_sent: true,
-        })
+        .update({ email_sent: true })
         .eq("id", savedMessage.id);
-
-      if (updateError) {
-        console.error("DB UPDATE ERROR:", updateError);
-      } else {
-        console.log("email_sent päivitetty onnistuneesti.");
-      }
     } catch (err) {
       console.error("EMAIL SEND ERROR:", err);
     }
 
-    return NextResponse.json({
-      success: true,
-    });
+    return NextResponse.json({ success: true });
   } catch (err) {
     console.error("CONTACT API ERROR:", err);
-
     return NextResponse.json(
-      {
-        error: "Odottamaton virhe.",
-      },
-      {
-        status: 500,
-      },
+      { error: "Odottamaton virhe." },
+      { status: 500 },
     );
   }
 }
