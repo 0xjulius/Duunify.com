@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { ratelimit } from "@/lib/ratelimit";
+import { createLog } from "@/lib/logger";
 
 function escapeHtml(input: string) {
   return input
@@ -12,15 +13,12 @@ function escapeHtml(input: string) {
     .replace(/'/g, "&#39;");
 }
 
-// Apufunktio bottien tuottamien satunnaisjonojen (gibberish) havaitsemiseen
 function isGibberish(text: string): boolean {
   if (!text) return false;
   const trimmed = text.trim();
-  // Jos merkkijono on yli 15 merkkiä pitkä eikä sisällä yhtään välilyöntiä tai yhdysviivaa (tyypillinen bottien generoima sotku)
   if (trimmed.length > 15 && !trimmed.includes(" ") && !trimmed.includes("-")) {
     return true;
   }
-  // Jos siinä on liikaa isoja kirjaimia ilman välilyöntejä
   const upperCount = (trimmed.match(/[A-Z]/g) || []).length;
   if (trimmed.length > 10 && upperCount / trimmed.length > 0.6) {
     return true;
@@ -38,23 +36,32 @@ export async function POST(req: NextRequest) {
       req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
       "Tuntematon";
 
-    // 1. AJETAAN RATE LIMIT IHAN ENSIMMÄISEKSI
+    // 1. RATE LIMIT
     const { success } = await ratelimit.limit(`contact_${ip}`);
 
     if (!success) {
+      await createLog({
+        action: "bot_blocked",
+        details: `Yhteydenotto estetty liian monen yrityksen vuoksi (Rate limit, IP: ${ip})`,
+        category: "contact",
+        status: "failure",
+      });
+
       return NextResponse.json(
         { error: "Liikaa yrityksiä. Yritä myöhemmin uudelleen." },
         { status: 429 },
       );
     }
 
-    // 2. TARKISTETAAN HONEYPOT
+    // 2. HONEYPOT
     if (website) {
-      console.warn("Botti havaittu (honeypot):", {
-        ip: ip,
-        userAgent: req.headers.get("user-agent"),
-        websiteValue: website,
+      await createLog({
+        action: "bot_blocked",
+        details: `Yhteydenottobotti estetty honeypot-ansalla (IP: ${ip})`,
+        category: "contact",
+        status: "failure",
       });
+
       return NextResponse.json({ success: true });
     }
 
@@ -82,39 +89,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. UUSI: TARKISTETAAN GIBBERISH (Estää esimerkkisi kaltaiset bottiviestit)
+    // 3. GIBBERISH-SUODATUS
     if (isGibberish(trimmedName) || isGibberish(trimmedSubject)) {
-      console.warn("Botti estetty (gibberish-suodatus):", { ip, name: trimmedName, subject: trimmedSubject });
-      // Palautetaan hämäykseksi onnistuminen, jotta botti luulee viestin menneen läpi
+      await createLog({
+        action: "bot_blocked",
+        details: `Yhteydenottobotti estetty epäilyttävän teksti-sisällön vuoksi: Nimi="${trimmedName}", Aihe="${trimmedSubject}" (IP: ${ip})`,
+        category: "contact",
+        status: "failure",
+      });
+
       return NextResponse.json({ success: true });
     }
 
-    if (trimmedName.length > 100) {
-      return NextResponse.json({ error: "Nimi liian pitkä." }, { status: 400 });
-    }
-
-    if (trimmedSubject.length > 150) {
+    if (trimmedName.length > 100 || trimmedSubject.length > 150 || trimmedMessage.length > 5000) {
       return NextResponse.json(
-        { error: "Aihe liian pitkä (max 150 merkkiä)." },
-        { status: 400 },
-      );
-    }
-
-    if (trimmedMessage.length > 5000) {
-      return NextResponse.json(
-        { error: "Viesti liian pitkä (max 5000 merkkiä)." },
+        { error: "Syötetty tieto on liian pitkä." },
         { status: 400 },
       );
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
     if (!emailRegex.test(trimmedEmail)) {
       return NextResponse.json(
         { error: "Virheellinen sähköpostiosoite." },
         { status: 400 },
       );
     }
+
+    const admin = createAdminClient();
+    const userAgent = req.headers.get("user-agent") ?? "Tuntematon";
+    const referer = req.headers.get("referer") ?? "Ei refereriä";
+    const language = req.headers.get("accept-language") ?? "Tuntematon";
+    const country = req.headers.get("x-vercel-ip-country") ?? "Tuntematon";
+    const region = req.headers.get("x-vercel-ip-country-region") ?? "Tuntematon";
+    const city = req.headers.get("x-vercel-ip-city") ?? "Tuntematon";
 
     // Tallennetaan tietokantaan
     const { data: savedMessage, error: dbError } = await admin
@@ -143,27 +151,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const recipientEmail = process.env.CONTACT_RECEIVER_EMAIL;
+    // Tallenna onnistunut loki merkintä
+    await createLog({
+      action: "contact_received",
+      details: `Uusi yhteydenotto vastaanotettu: ${trimmedEmail} (Aihe: ${trimmedSubject})`,
+      category: "contact",
+      status: "success",
+    });
 
+    const recipientEmail = process.env.CONTACT_RECEIVER_EMAIL;
     if (!recipientEmail) {
-      console.error("CONTACT_RECEIVER_EMAIL puuttuu.");
       return NextResponse.json({ success: true });
     }
 
     const resend = new Resend(process.env.RESEND_API_KEY);
-    const admin = createAdminClient();
-
-    const userAgent = req.headers.get("user-agent") ?? "Tuntematon";
-    const referer = req.headers.get("referer") ?? "Ei refereriä";
-    const language = req.headers.get("accept-language") ?? "Tuntematon";
-
-    const country = req.headers.get("x-vercel-ip-country") ?? "Tuntematon";
-    const region =
-      req.headers.get("x-vercel-ip-country-region") ?? "Tuntematon";
-    const city = req.headers.get("x-vercel-ip-city") ?? "Tuntematon";
 
     try {
-      const { data, error } = await resend.emails.send({
+      const { error } = await resend.emails.send({
         from: "Duunify <yhteydenotot@duunify.com>",
         to: recipientEmail,
         replyTo: trimmedEmail,
@@ -191,16 +195,11 @@ export async function POST(req: NextRequest) {
           <li><strong>Referer:</strong> ${referer}</li>
         </ul>
       </div>
-
-      <small style="color:#64748b;display:block;margin-top:20px;">
-        Lähetetty Duunifyn yhteydenottolomakkeesta.
-      </small>
     </div>
   `,
       });
 
       if (error) {
-        console.error("Resend error:", error);
         throw error;
       }
 
