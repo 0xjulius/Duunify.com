@@ -111,12 +111,14 @@ async function fetchAndParseFile(
 }
 
 export async function POST(req: Request) {
+  console.time("⏱️ Koko pyyntö yhteensä");
   try {
     // 2. RATE LIMITING -TARKISTUS
     const ip = req.headers.get("x-forwarded-for") ?? "127.0.0.1";
     if (process.env.UPSTASH_REDIS_REST_URL) {
       const { success } = await ratelimit.limit(`generate_cover_letter_${ip}`);
       if (!success) {
+        console.timeEnd("⏱️ Koko pyyntö yhteensä");
         return NextResponse.json(
           {
             error:
@@ -157,6 +159,7 @@ export async function POST(req: Request) {
     const userId = authenticatedUserId || bodyUserId;
 
     if (!userId) {
+      console.timeEnd("⏱️ Koko pyyntö yhteensä");
       return NextResponse.json(
         { error: "Käyttäjää ei tunnistettu. Kirjaudu sisään uudelleen." },
         { status: 401 },
@@ -171,6 +174,7 @@ export async function POST(req: Request) {
 
     if (creditError) {
       console.error("Virhe krediittien tarkistuksessa:", creditError);
+      console.timeEnd("⏱️ Koko pyyntö yhteensä");
       return NextResponse.json(
         { error: "Krediittien tarkistus epäonnistui tietokannassa." },
         { status: 500 },
@@ -187,6 +191,7 @@ export async function POST(req: Request) {
         read: false,
       });
 
+      console.timeEnd("⏱️ Koko pyyntö yhteensä");
       return NextResponse.json(
         {
           error: "AI-krediittisi ovat loppuneet! Lataa lisää krediittejä jatkaaksesi.",
@@ -198,6 +203,7 @@ export async function POST(req: Request) {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
+      console.timeEnd("⏱️ Koko pyyntö yhteensä");
       return NextResponse.json(
         { error: "API-avain puuttuu konfiguraatiosta." },
         { status: 500 },
@@ -224,13 +230,13 @@ export async function POST(req: Request) {
       }
     }
 
-    // 6. HAETAAN JA PARSITAAN SEKÄ CV ETTÄ HAKUKIRJE
-    const extractedCvText = await fetchAndParseFile(userId, "cv", cvFilename);
-    const extractedLetterText = await fetchAndParseFile(
-      userId,
-      "letter",
-      letterFilename,
-    );
+    // 6. HAETAAN JA PARSITAAN SEKÄ CV ETTÄ HAKUKIRJE RINNAKKAIN (MITATAAN AIKA)
+    console.time("⏱️ Tiedostojen haku ja parsinta");
+    const [extractedCvText, extractedLetterText] = await Promise.all([
+      fetchAndParseFile(userId, "cv", cvFilename),
+      fetchAndParseFile(userId, "letter", letterFilename),
+    ]);
+    console.timeEnd("⏱️ Tiedostojen haku ja parsinta");
 
     const combinedBaseText = [
       extractedCvText ? `--- CV TEKSTI ---\n${extractedCvText}` : "",
@@ -320,7 +326,8 @@ EHDOTON SÄÄNTÖ:
 3. Älä vähättele hakijan osaamista. Älä käytä sanoja kuten "juniori", "perusosaaminen" tai "vähän kokemusta". Keskity siihen, mitä hakija osaa ja mitä hyötyä siitä on työnantajalle.
 `;
 
-    // 8. GEMINI-KUTSU
+    // 8. GEMINI-KUTSU (MITATAAN AIKA)
+    console.time("⏱️ Gemini AI kutsu");
     let response;
     let usedModel = "gemini-3.5-flash";
 
@@ -345,6 +352,7 @@ EHDOTON SÄÄNTÖ:
         throw fallbackError;
       }
     }
+    console.timeEnd("⏱️ Gemini AI kutsu");
 
     // 9. LISÄTÄÄN ONNISTUNUT ILMOITUS VAIN KUN GENEROINTI ON VALMIS
     await supabaseAdmin.from("notifications").insert({
@@ -355,8 +363,10 @@ EHDOTON SÄÄNTÖ:
       read: false,
     });
 
+    console.timeEnd("⏱️ Koko pyyntö yhteensä");
     return NextResponse.json({ coverLetter: response.text });
   } catch (error: any) {
+    console.timeEnd("⏱️ Koko pyyntö yhteensä");
     console.error("Gemini API backend virhe:", error);
 
     if (error?.status === 429 || error?.message?.includes("quota")) {
