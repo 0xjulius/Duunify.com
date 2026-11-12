@@ -115,21 +115,37 @@ function cleanDescription(rawHtml: string, isAcademicWork: boolean = false): str
 }
 
 async function fetchJobHtml(targetUrl: string): Promise<string> {
+  const scraperApiKey = process.env.SCRAPER_API_KEY;
   const isVercel = process.env.VERCEL === "1";
+
+  if (scraperApiKey && targetUrl.includes("jobly.fi") && isVercel) {
+    const scraperUrl = `https://api.scraperapi.com?api_key=${scraperApiKey}&url=${encodeURIComponent(
+      targetUrl
+    )}&render=true`;
+
+    const res = await fetch(scraperUrl, {
+      headers: {
+        "Accept-Language": "fi-FI,fi;q=0.9,en;q=0.8",
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error(`ScraperAPI palautti virheen: ${res.status}`);
+    }
+
+    return await res.text();
+  }
+
   let browser = null;
 
   try {
     if (isVercel) {
-      // Korjattu Sparticuz Chromiumin asetukset Vercelille
-      chromium.setHeadlessMode = true;
-      chromium.setGraphicsMode = false;
-      
       const executablePath = await chromium.executablePath();
       browser = await puppeteer.launch({
         args: chromium.args,
         defaultViewport: { width: 1280, height: 720 },
         executablePath,
-        headless: chromium.headless,
+        headless: true,
       });
     } else {
       const puppeteerModule = await import("puppeteer");
