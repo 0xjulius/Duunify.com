@@ -121,15 +121,17 @@ function cleanDescription(rawHtml: string, isJobSiteWithExtras: boolean = false)
  */
 async function fetchViaScraperApi(
   targetUrl: string,
-  apiKey: string
+  apiKey: string,
+  render: boolean,
+  timeoutMs: number
 ): Promise<string> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const scraperUrl = `https://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(
       targetUrl
-    )}&render=true`;
+    )}${render ? "&render=true" : ""}`;
 
     const res = await fetch(scraperUrl, {
       signal: controller.signal,
@@ -147,7 +149,7 @@ async function fetchViaScraperApi(
 
     const text = await res.text();
     console.log(
-      `[fetchJobHtml] ScraperAPI OK, ${text.length} merkkiä: ${targetUrl}`
+      `[fetchJobHtml] ScraperAPI OK (render=${render}), ${text.length} merkkiä: ${targetUrl}`
     );
     return text;
   } finally {
@@ -164,7 +166,24 @@ async function fetchJobHtml(targetUrl: string): Promise<string> {
   // Vercelillä: ScraperAPI sekä Joblylle että Academic Workille
   if (isVercel && needsScraper) {
     if (scraperApiKey) {
-      return await fetchViaScraperApi(targetUrl, scraperApiKey);
+      // 1. Nopea haku ilman renderöintiä
+      try {
+        const quick = await fetchViaScraperApi(
+          targetUrl,
+          scraperApiKey,
+          false,
+          20000
+        );
+        const hasContent =
+          quick.includes('"JobPosting"') || /<h1[\s>]/i.test(quick);
+        if (hasContent) return quick;
+        console.log("[fetchJobHtml] Nopea haku tyhjä, yritetään render=true");
+      } catch (err: any) {
+        console.warn("[fetchJobHtml] Nopea haku epäonnistui:", err?.message);
+      }
+
+      // 2. Varalla hitaampi haku renderöinnillä
+      return await fetchViaScraperApi(targetUrl, scraperApiKey, true, 35000);
     }
     console.warn(
       "[fetchJobHtml] SCRAPER_API_KEY puuttuu Vercelin ympäristömuuttujista, yritetään Chromiumia (todennäköisesti estetään)"
