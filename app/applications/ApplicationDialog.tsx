@@ -173,6 +173,20 @@ function DialogMetaChip({
   );
 }
 
+/**
+ * Palauttaa true, jos kosketuksen kohteesta ylöspäin (rajaelementtiin asti)
+ * löytyy vieritettävä elementti, jota on jo vieritetty alas.
+ * Silloin sormen veto alaspäin on tarkoitettu vierittämiseen, ei dialogin sulkemiseen.
+ */
+function isScrolledInside(target: EventTarget | null, boundary: HTMLElement) {
+  let el = target as HTMLElement | null;
+  while (el && el !== boundary) {
+    if (el.scrollHeight > el.clientHeight && el.scrollTop > 0) return true;
+    el = el.parentElement;
+  }
+  return false;
+}
+
 export default function ApplicationDialog({
   open,
   onOpenChange,
@@ -197,21 +211,29 @@ export default function ApplicationDialog({
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [editedNotes, setEditedNotes] = useState("");
+  const [savedNotes, setSavedNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
 
   const touchStartY = useRef<number>(0);
   const touchCurrentY = useRef<number>(0);
+  const swipeAllowed = useRef<boolean>(false);
   const [translateY, setTranslateY] = useState<number>(0);
   const [isSwiping, setIsSwiping] = useState<boolean>(false);
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    // Jos kosketus alkaa vieritetyn alueen sisältä, kyse on vierityksestä
+    if (isScrolledInside(e.target, e.currentTarget as HTMLElement)) {
+      swipeAllowed.current = false;
+      return;
+    }
+    swipeAllowed.current = true;
     touchStartY.current = e.targetTouches[0].clientY;
     touchCurrentY.current = e.targetTouches[0].clientY;
     setIsSwiping(true);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isSwiping) return;
+    if (!swipeAllowed.current || !isSwiping) return;
     const currentY = e.targetTouches[0].clientY;
     touchCurrentY.current = currentY;
 
@@ -224,7 +246,7 @@ export default function ApplicationDialog({
   const handleTouchEnd = () => {
     setIsSwiping(false);
     const swipeDistance = touchCurrentY.current - touchStartY.current;
-    if (swipeDistance > 100) {
+    if (swipeAllowed.current && swipeDistance > 100) {
       onOpenChange(false);
     }
     setTranslateY(0);
@@ -258,6 +280,7 @@ export default function ApplicationDialog({
       setCurrentStatus(app.status || "Haettu");
       const notesVal = app.notes || "";
       setEditedNotes(notesVal);
+      setSavedNotes(notesVal);
       setIsEditingNotes(false);
 
       const hasContent = Boolean(cvVal) || Boolean(notesVal.trim()) || isDemo;
@@ -361,7 +384,7 @@ export default function ApplicationDialog({
 
       if (error) throw error;
 
-      app.notes = editedNotes;
+      setSavedNotes(editedNotes);
 
       toast.success("Muistiinpanot tallennettu!");
       setIsEditingNotes(false);
@@ -803,7 +826,7 @@ export default function ApplicationDialog({
                 >
                   <FileText size={16} className="text-slate-400 shrink-0" />
                   <span className="truncate">Muistiinpanot</span>
-                  {(app.notes || editedNotes) && !isNotesOpen && (
+                  {savedNotes.trim() && !isNotesOpen && (
                     <span
                       className="w-2 h-2 rounded-full bg-indigo-500 shrink-0"
                       title="Sisältää muistiinpanoja"
@@ -836,7 +859,7 @@ export default function ApplicationDialog({
                       <textarea
                         value={editedNotes}
                         onChange={(e) => setEditedNotes(e.target.value)}
-                        className="w-full h-full p-2.5 text-xs sm:text-sm bg-white dark:bg-[#181b2a] border border-indigo-500 dark:border-indigo-500 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                        className="select-text w-full h-full p-2.5 text-xs sm:text-sm bg-white dark:bg-[#181b2a] border border-indigo-500 dark:border-indigo-500 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                         placeholder="Kirjoita muistiinpanoja..."
                         autoFocus
                       />
@@ -844,7 +867,7 @@ export default function ApplicationDialog({
                         <button
                           type="button"
                           onClick={() => {
-                            setEditedNotes(app.notes || "");
+                            setEditedNotes(savedNotes);
                             setIsEditingNotes(false);
                           }}
                           className="w-1/2 py-1.5 px-3 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition cursor-pointer"
@@ -863,12 +886,16 @@ export default function ApplicationDialog({
                     </div>
                   ) : (
                     <div
-                      className="p-3 bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/60 text-xs sm:text-sm h-full overflow-y-auto cursor-pointer hover:border-slate-300 dark:hover:border-slate-600 transition-colors"
-                      onClick={() => setIsEditingNotes(true)}
+                      className="select-text p-3 bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/60 text-xs sm:text-sm h-full overflow-y-auto cursor-pointer hover:border-slate-300 dark:hover:border-slate-600 transition-colors"
+                      onClick={() => {
+                        // Tekstin valinta ei saa avata muokkaustilaa
+                        if (window.getSelection()?.toString()) return;
+                        setIsEditingNotes(true);
+                      }}
                     >
-                      {app.notes || editedNotes ? (
+                      {savedNotes ? (
                         <span className="whitespace-pre-wrap">
-                          {editedNotes || app.notes}
+                          {savedNotes}
                         </span>
                       ) : (
                         <span className="italic text-slate-400">
@@ -908,7 +935,7 @@ export default function ApplicationDialog({
                 value="description"
                 className="focus-visible:outline-none"
               >
-                <div className="p-5 md:p-6 rounded-3xl bg-slate-100 dark:bg-[#0d0f1a] border border-slate-200 dark:border-slate-800 shadow-inner text-slate-800 dark:text-slate-300 leading-relaxed text-sm md:text-base">
+                <div className="p-5 md:p-6 rounded-3xl bg-slate-100 dark:bg-[#0d0f1a] border border-slate-200 dark:border-slate-800 shadow-inner text-slate-800 dark:text-slate-300 select-text leading-relaxed text-sm md:text-base">
                   {app.job_description ? (
                     <FormattedDescription text={app.job_description} />
                   ) : (
