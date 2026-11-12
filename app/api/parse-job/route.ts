@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase-server";
 export const runtime = "nodejs";
 export const preferredRegion = ["arn1"];
 export const dynamic = "force-dynamic";
-export const maxDuration = 60; // Estää Verceliä katkaisemasta pyyntöä liian aikaisin
+export const maxDuration = 60;
 
 const USER_AGENTS = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -76,7 +76,7 @@ function suomennaTyoaika(tyyppiInput: any): string {
   return String(tyyppiInput);
 }
 
-function cleanDescription(rawHtml: string, isAcademicWork: boolean = false): string {
+function cleanDescription(rawHtml: string, isJobSiteWithExtras: boolean = false): string {
   if (!rawHtml) return "";
   
   let cleaned = rawHtml
@@ -95,12 +95,13 @@ function cleanDescription(rawHtml: string, isAcademicWork: boolean = false): str
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  if (isAcademicWork) {
+  if (isJobSiteWithExtras) {
     const cutOffPhrases = [
       "Tule osaksi Academic Workin",
       "Onko sinulla kysyttävää tästä työpaikasta",
       "Our recruitment process",
       "Tämä rekrytointiprosessi",
+      "Tämä tiivistelmä on luotu tekoälyn avulla",
     ];
 
     for (const phrase of cutOffPhrases) {
@@ -250,7 +251,7 @@ export async function POST(req: NextRequest) {
     }
 
     const $ = cheerio.load(html);
-    const isAcademicWork = url.includes("academicwork.fi");
+    const isJobSite = url.includes("academicwork.fi") || url.includes("jobly.fi");
     let jobData: any = null;
 
     $('script[type="application/ld+json"]').each((_, element) => {
@@ -301,17 +302,18 @@ export async function POST(req: NextRequest) {
       ? rawTitle.charAt(0).toUpperCase() + rawTitle.slice(1)
       : "";
 
-    // 2. Company (Yritys)
+    // 2. Company (Yritys - poimitaan älykkäasti, jos organisaationa on Academic Work)
     let rawCompany =
       jobData?.hiringOrganization?.name?.trim() ||
       $(".job-title h2").first().text().trim() ||
       $('meta[property="og:site_name"]').attr("content") ||
       "";
 
-    if (isAcademicWork && (!rawCompany || rawCompany === "Academic Work")) {
+    // Jos yrityksenä on Academic Work tai tyhjä, katsotaan löytyykö oikea asiakasyritys otsikosta (esim. "Elektroniikkainsinööri, ABB Oy, Vaasa")
+    if (!rawCompany || rawCompany.toLowerCase() === "academic work") {
       const parts = rawTitle.split(",").map((p: string) => p.trim());
       if (parts.length >= 2) {
-        rawCompany = parts[1];
+        rawCompany = parts[1]; // Esim. "ABB Oy"
       } else {
         rawCompany = "Academic Work";
       }
@@ -363,10 +365,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!location && isAcademicWork) {
+    if (!location && isJobSite) {
       const parts = rawTitle.split(",").map((p: string) => p.trim());
       if (parts.length >= 3) {
-        location = parts[parts.length - 1];
+        location = parts[parts.length - 1]; // Esim. "Vaasa"
       } else {
         const bodyText = $("main").text();
         const locMatch = bodyText.match(/Location:\s*([^\n]+)/i);
@@ -399,7 +401,7 @@ export async function POST(req: NextRequest) {
       $(".job-type, [data-testid='job-type']").first().text().trim() ||
       "";
 
-    if (!rawEmploymentType && isAcademicWork) {
+    if (!rawEmploymentType && isJobSite) {
       const bodyText = $("main").text().toLowerCase();
       if (bodyText.includes("kokoaikainen") || bodyText.includes("full-time") || bodyText.includes("full time")) {
         rawEmploymentType = "FULL_TIME";
@@ -419,7 +421,7 @@ export async function POST(req: NextRequest) {
       $(".job-description").html() ||
       "";
 
-    if (!rawDescription && isAcademicWork) {
+    if (!rawDescription && isJobSite) {
       const mainClone = $("main").clone();
       mainClone.find("button, nav, header, footer, script, style, form").remove();
       rawDescription = mainClone.html() || "";
@@ -429,7 +431,7 @@ export async function POST(req: NextRequest) {
       rawDescription = $('meta[property="og:description"]').attr("content") || "";
     }
 
-    const description = cleanDescription(rawDescription, isAcademicWork);
+    const description = cleanDescription(rawDescription, isJobSite);
 
     if (!title && !description) {
       return NextResponse.json(
