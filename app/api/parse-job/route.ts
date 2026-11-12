@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase-server";
 export const runtime = "nodejs";
 export const preferredRegion = ["arn1"];
 export const dynamic = "force-dynamic";
+export const maxDuration = 60; // Estää Verceliä katkaisemasta pyyntöä liian aikaisin
 
 const USER_AGENTS = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -18,7 +19,12 @@ const USER_AGENTS = [
 function isAllowedJobSite(url: string) {
   try {
     const hostname = new URL(url).hostname.toLowerCase();
-    const allowedDomains = ["duunitori.fi", "tyomarkkinatori.fi", "jobly.fi"];
+    const allowedDomains = [
+      "duunitori.fi",
+      "tyomarkkinatori.fi",
+      "jobly.fi",
+      "academicwork.fi",
+    ];
 
     return allowedDomains.some(
       (domain) => hostname === domain || hostname.endsWith("." + domain)
@@ -59,59 +65,78 @@ function suomennaTyoaika(tyyppiInput: any): string {
     return uniikitTyypit.map((t) => kaannokset[t] || t).join(", ");
   }
 
-  return "Muu";
+  const textVal = String(tyyppiInput).toLowerCase();
+  if (textVal.includes("kokoaikainen") || textVal.includes("full_time") || textVal.includes("full-time")) {
+    return "Kokoaikainen";
+  }
+  if (textVal.includes("osa-aikainen") || textVal.includes("part_time") || textVal.includes("part-time")) {
+    return "Osa-aikainen";
+  }
+
+  return String(tyyppiInput);
 }
 
-function cleanDescription(rawHtml: string): string {
+function cleanDescription(rawHtml: string, isAcademicWork: boolean = false): string {
   if (!rawHtml) return "";
-  return rawHtml
+  
+  let cleaned = rawHtml
     .replace(/\\n/g, "\n")
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<(b|strong)[^>]*>/gi, "**")
     .replace(/<\/(b|strong)>/gi, "**")
     .replace(/<li[^>]*>/gi, "\n• ")
     .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/h[1-6]>/gi, "\n\n")
     .replace(/<[^>]*>/g, "")
     .split("\n")
     .map((line: string) => line.trim().replace(/^[-*]\s+/, "• "))
     .join("\n")
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
-    .trim()
-    .slice(0, 15000);
-}
+    .trim();
 
-// Jobly-kohtainen ohitus (Cloudflare-suojauksen purkuun)
-async function fetchJoblyHtml(targetUrl: string): Promise<string> {
-  const scraperApiKey = process.env.SCRAPER_API_KEY;
+  if (isAcademicWork) {
+    const cutOffPhrases = [
+      "Tule osaksi Academic Workin",
+      "Onko sinulla kysyttävää tästä työpaikasta",
+      "Our recruitment process",
+      "Tämä rekrytointiprosessi",
+    ];
 
-  if (scraperApiKey) {
-    const scraperUrl = `https://api.scraperapi.com?api_key=${scraperApiKey}&url=${encodeURIComponent(
-      targetUrl
-    )}`;
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
-
-    try {
-      const res = await fetch(scraperUrl, {
-        signal: controller.signal,
-        headers: {
-          "Accept-Language": "fi-FI,fi;q=0.9,en;q=0.8",
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error(`ScraperAPI palautti virheen: ${res.status}`);
+    for (const phrase of cutOffPhrases) {
+      const idx = cleaned.indexOf(phrase);
+      if (idx !== -1) {
+        cleaned = cleaned.substring(0, idx).trim();
       }
-
-      return await res.text();
-    } finally {
-      clearTimeout(timeout);
     }
   }
 
+  return cleaned.slice(0, 15000);
+}
+
+async function fetchJobHtml(targetUrl: string): Promise<string> {
+  const scraperApiKey = process.env.SCRAPER_API_KEY;
   const isVercel = process.env.VERCEL === "1";
+
+  // Joblylle käytetään ScraperAPIa Vercelissä ilman AbortControlleria, jotta render=true ehtii latautua
+  if (scraperApiKey && targetUrl.includes("jobly.fi") && isVercel) {
+    const scraperUrl = `https://api.scraperapi.com?api_key=${scraperApiKey}&url=${encodeURIComponent(
+      targetUrl
+    )}&render=true`;
+
+    const res = await fetch(scraperUrl, {
+      headers: {
+        "Accept-Language": "fi-FI,fi;q=0.9,en;q=0.8",
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error(`ScraperAPI palautti virheen: ${res.status}`);
+    }
+
+    return await res.text();
+  }
+
   let browser = null;
 
   try {
@@ -137,9 +162,13 @@ async function fetchJoblyHtml(targetUrl: string): Promise<string> {
     await page.setUserAgent(USER_AGENTS[0]);
 
     await page.goto(targetUrl, {
-      waitUntil: "domcontentloaded",
-      timeout: 10000,
+      waitUntil: targetUrl.includes("academicwork.fi") ? "networkidle2" : "domcontentloaded",
+      timeout: 15000,
     });
+
+    if (targetUrl.includes("academicwork.fi")) {
+      await page.waitForSelector("h1", { timeout: 5000 }).catch(() => {});
+    }
 
     return await page.content();
   } finally {
@@ -179,25 +208,20 @@ export async function POST(req: NextRequest) {
     }
 
     let html = "";
-
-    // 1. Jobly haku (ScraperAPI / Puppeteer Cloudflare-ohitukseen)
-    if (url.includes("jobly.fi")) {
+    if (url.includes("jobly.fi") || url.includes("academicwork.fi")) {
       try {
-        html = await fetchJoblyHtml(url);
+        html = await fetchJobHtml(url);
       } catch (err: any) {
-        console.error("Jobly fetch error:", err);
+        console.error("Browser fetch error:", err);
         return NextResponse.json(
-          { error: "Failed to bypass Jobly anti-bot protection" },
+          { error: "Failed to fetch job ad page" },
           { status: 502 }
         );
       }
     } else {
-      // 2. Duunitori & Työmarkkinatori (nopea suora fetch)
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
-
-      const randomUserAgent =
-        USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+      const randomUserAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
 
       let response: Response;
       try {
@@ -205,11 +229,8 @@ export async function POST(req: NextRequest) {
           signal: controller.signal,
           headers: {
             "User-Agent": randomUserAgent,
-            Accept:
-              "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-            "Accept-Language": "fi-FI,fi;q=0.9,en-US;q=0.8,en;q=0.7",
-            "Cache-Control": "no-cache",
-            Pragma: "no-cache",
+            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "fi-FI,fi;q=0.9,en;q=0.8",
           },
         });
       } finally {
@@ -226,81 +247,186 @@ export async function POST(req: NextRequest) {
     }
 
     const $ = cheerio.load(html);
+    const isAcademicWork = url.includes("academicwork.fi");
     let jobData: any = null;
 
-    // Haetaan JSON-LD-skripti
     $('script[type="application/ld+json"]').each((_, element) => {
       try {
         const content = $(element).html();
         if (!content) return;
         const parsed = JSON.parse(content);
 
-        if (Array.isArray(parsed)) {
-          const job = parsed.find(
-            (item: any) => item["@type"] === "JobPosting"
-          );
-          if (job) jobData = job;
-        } else if (parsed["@graph"]) {
-          const job = parsed["@graph"].find(
-            (item: any) => item["@type"] === "JobPosting"
-          );
-          if (job) jobData = job;
-        } else if (parsed["@type"] === "JobPosting") {
-          jobData = parsed;
+        const findJobPosting = (item: any): any => {
+          if (!item) return null;
+          const type = item["@type"];
+          const isJobPosting =
+            type === "JobPosting" ||
+            (Array.isArray(type) && type.includes("JobPosting"));
+
+          if (isJobPosting) return item;
+
+          if (Array.isArray(item)) {
+            for (const subItem of item) {
+              const found = findJobPosting(subItem);
+              if (found) return found;
+            }
+          }
+          if (item["@graph"] && Array.isArray(item["@graph"])) {
+            for (const subItem of item["@graph"]) {
+              const found = findJobPosting(subItem);
+              if (found) return found;
+            }
+          }
+          return null;
+        };
+
+        const foundJob = findJobPosting(parsed);
+        if (foundJob) {
+          jobData = foundJob;
         }
       } catch {}
     });
 
-    // Työtehtävä - muotoillaan alkamaan isolla alkukirjaimella
+    // 1. Title (Otsikko)
     const rawTitle =
       jobData?.title ||
-      $('meta[property="og:title"]').attr("content") ||
       $("h1").first().text().trim() ||
+      $('meta[property="og:title"]').attr("content")?.split("|")[0]?.trim() ||
       $("title").text().trim();
 
     const title = rawTitle
       ? rawTitle.charAt(0).toUpperCase() + rawTitle.slice(1)
       : "";
 
-    // Yritys - muotoillaan alkamaan isolla alkukirjaimella
-    const rawCompany =
+    // 2. Company (Yritys)
+    let rawCompany =
       jobData?.hiringOrganization?.name?.trim() ||
+      $(".job-title h2").first().text().trim() ||
       $('meta[property="og:site_name"]').attr("content") ||
       "";
+
+    if (isAcademicWork && (!rawCompany || rawCompany === "Academic Work")) {
+      const parts = rawTitle.split(",").map((p: string) => p.trim());
+      if (parts.length >= 2) {
+        rawCompany = parts[1];
+      } else {
+        rawCompany = "Academic Work";
+      }
+    }
 
     const company = rawCompany
       ? rawCompany.charAt(0).toUpperCase() + rawCompany.slice(1)
       : "";
 
+    // 3. Company Logo
     const logoData = jobData?.hiringOrganization?.logo;
-    const companyLogo =
-      typeof logoData === "object" ? logoData?.url : logoData || null;
-
-    let location = "";
-    if (Array.isArray(jobData?.jobLocation)) {
-      location = jobData.jobLocation
-        .map((loc: any) =>
-          typeof loc === "string" ? loc : loc?.address?.addressLocality
-        )
-        .filter(Boolean)
-        .join(", ");
-    } else if (typeof jobData?.jobLocation === "string") {
-      location = jobData.jobLocation;
-    } else {
-      location = jobData?.jobLocation?.address?.addressLocality || "";
+    let companyLogo = null;
+    if (typeof logoData === "object" && logoData !== null) {
+      companyLogo = logoData?.url || logoData?.contentUrl || null;
+    } else if (typeof logoData === "string") {
+      companyLogo = logoData;
+    }
+    if (!companyLogo) {
+      companyLogo =
+        $('meta[property="og:image"]').attr("content") ||
+        $(".employer-logo img, .company-logo img").first().attr("src") ||
+        null;
     }
 
-    const salaryMin = jobData?.baseSalary?.value?.minValue || null;
-    const salaryMax = jobData?.baseSalary?.value?.maxValue || null;
-    const employmentType = suomennaTyoaika(jobData?.employmentType);
+    // 4. Location (Sijainti)
+    let location = "";
+    if (jobData?.jobLocation) {
+      if (Array.isArray(jobData.jobLocation)) {
+        location = jobData.jobLocation
+          .map((loc: any) => {
+            if (typeof loc === "string") return loc;
+            return (
+              loc?.address?.addressLocality ||
+              loc?.address?.addressRegion ||
+              loc?.address?.streetAddress ||
+              ""
+            );
+          })
+          .filter(Boolean)
+          .join(", ");
+      } else if (typeof jobData.jobLocation === "string") {
+        location = jobData.jobLocation;
+      } else {
+        location =
+          jobData.jobLocation?.address?.addressLocality ||
+          jobData.jobLocation?.address?.addressRegion ||
+          jobData.jobLocation?.address?.streetAddress ||
+          "";
+      }
+    }
+
+    if (!location && isAcademicWork) {
+      const parts = rawTitle.split(",").map((p: string) => p.trim());
+      if (parts.length >= 3) {
+        location = parts[parts.length - 1];
+      } else {
+        const bodyText = $("main").text();
+        const locMatch = bodyText.match(/Location:\s*([^\n]+)/i);
+        if (locMatch && locMatch[1]) {
+          location = locMatch[1].trim();
+        }
+      }
+    }
+
+    // 5. & 6. Salary Min & Max
+    let salaryMin: number | null = null;
+    let salaryMax: number | null = null;
+
+    if (jobData?.baseSalary?.value) {
+      const val = jobData.baseSalary.value;
+      if (typeof val === "object") {
+        salaryMin = val.minValue !== undefined ? Number(val.minValue) : null;
+        salaryMax = val.maxValue !== undefined ? Number(val.maxValue) : null;
+        if (salaryMin === null && val.value !== undefined) {
+          salaryMin = Number(val.value);
+        }
+      } else if (typeof val === "number") {
+        salaryMin = val;
+      }
+    }
+
+    // 7. Employment Type (Työaika)
+    let rawEmploymentType =
+      jobData?.employmentType ||
+      $(".job-type, [data-testid='job-type']").first().text().trim() ||
+      "";
+
+    if (!rawEmploymentType && isAcademicWork) {
+      const bodyText = $("main").text().toLowerCase();
+      if (bodyText.includes("kokoaikainen") || bodyText.includes("full-time") || bodyText.includes("full time")) {
+        rawEmploymentType = "FULL_TIME";
+      } else if (bodyText.includes("osa-aikainen") || bodyText.includes("part-time")) {
+        rawEmploymentType = "PART_TIME";
+      }
+    }
+    const employmentType = suomennaTyoaika(rawEmploymentType);
+
+    // 8. Valid Through & Date Posted
     const validThrough = jobData?.validThrough || "";
     const datePosted = jobData?.datePosted || "";
 
-    const rawDescription =
+    // 10. Description (Kuvaus)
+    let rawDescription =
       jobData?.description ||
-      $('meta[property="og:description"]').attr("content") ||
+      $(".job-description").html() ||
       "";
-    const description = cleanDescription(rawDescription);
+
+    if (!rawDescription && isAcademicWork) {
+      const mainClone = $("main").clone();
+      mainClone.find("button, nav, header, footer, script, style, form").remove();
+      rawDescription = mainClone.html() || "";
+    }
+
+    if (!rawDescription) {
+      rawDescription = $('meta[property="og:description"]').attr("content") || "";
+    }
+
+    const description = cleanDescription(rawDescription, isAcademicWork);
 
     if (!title && !description) {
       return NextResponse.json(
@@ -322,6 +448,7 @@ export async function POST(req: NextRequest) {
       datePosted,
     });
   } catch (error: any) {
+    console.error("Route error:", error?.message || error);
     if (error?.name === "AbortError") {
       return NextResponse.json(
         { error: "Request timeout while fetching job ad" },
