@@ -78,7 +78,7 @@ function suomennaTyoaika(tyyppiInput: any): string {
 
 function cleanDescription(rawHtml: string, isJobSiteWithExtras: boolean = false): string {
   if (!rawHtml) return "";
-  
+
   let cleaned = rawHtml
     .replace(/\\n/g, "\n")
     .replace(/<br\s*\/?>/gi, "\n")
@@ -115,13 +115,69 @@ function cleanDescription(rawHtml: string, isJobSiteWithExtras: boolean = false)
   return cleaned.slice(0, 15000);
 }
 
+/**
+ * Hakee sivun HTML:n ScraperAPI:n kautta.
+ * Käytetään Vercelillä, koska datacenter-IP:t ja headless-Chromium tunnistetaan helposti.
+ */
+async function fetchViaScraperApi(
+  targetUrl: string,
+  apiKey: string
+): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45000);
+
+  try {
+    const scraperUrl = `https://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(
+      targetUrl
+    )}&render=true`;
+
+    const res = await fetch(scraperUrl, {
+      signal: controller.signal,
+      headers: {
+        "Accept-Language": "fi-FI,fi;q=0.9,en;q=0.8",
+      },
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      throw new Error(
+        `ScraperAPI palautti virheen: ${res.status} ${errBody.slice(0, 200)}`
+      );
+    }
+
+    const text = await res.text();
+    console.log(
+      `[fetchJobHtml] ScraperAPI OK, ${text.length} merkkiä: ${targetUrl}`
+    );
+    return text;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function fetchJobHtml(targetUrl: string): Promise<string> {
+  const scraperApiKey = process.env.SCRAPER_API_KEY;
   const isVercel = process.env.VERCEL === "1";
-  let browser = null;
+  const needsScraper =
+    targetUrl.includes("jobly.fi") || targetUrl.includes("academicwork.fi");
+
+  // Vercelillä: ScraperAPI sekä Joblylle että Academic Workille
+  if (isVercel && needsScraper) {
+    if (scraperApiKey) {
+      return await fetchViaScraperApi(targetUrl, scraperApiKey);
+    }
+    console.warn(
+      "[fetchJobHtml] SCRAPER_API_KEY puuttuu Vercelin ympäristömuuttujista, yritetään Chromiumia (todennäköisesti estetään)"
+    );
+  }
+
+  let browser: any = null;
 
   try {
     if (isVercel) {
       const executablePath = await chromium.executablePath();
+      console.log("[fetchJobHtml] Chromium path:", executablePath);
+
       browser = await puppeteer.launch({
         args: [
           ...chromium.args,
@@ -146,11 +202,18 @@ async function fetchJobHtml(targetUrl: string): Promise<string> {
 
     const page = await browser.newPage();
     await page.setUserAgent(USER_AGENTS[0]);
+    await page.setExtraHTTPHeaders({
+      "Accept-Language": "fi-FI,fi;q=0.9,en;q=0.8",
+    });
 
-    await page.goto(targetUrl, {
+    const response = await page.goto(targetUrl, {
       waitUntil: "domcontentloaded",
       timeout: 20000,
     });
+
+    console.log(
+      `[fetchJobHtml] Chromium status ${response?.status()} : ${targetUrl}`
+    );
 
     await page.waitForSelector("h1", { timeout: 8000 }).catch(() => {});
 
@@ -196,7 +259,7 @@ export async function POST(req: NextRequest) {
       try {
         html = await fetchJobHtml(url);
       } catch (err: any) {
-        console.error("Browser fetch error:", err);
+        console.error("Browser fetch error:", err?.message || err);
         return NextResponse.json(
           { error: "Failed to fetch job ad page" },
           { status: 502 }
@@ -271,6 +334,10 @@ export async function POST(req: NextRequest) {
       } catch {}
     });
 
+    console.log(
+      `[parse] html=${html.length} merkkiä, JSON-LD JobPosting löytyi: ${!!jobData}`
+    );
+
     // 1. Title (Otsikko)
     const rawTitle =
       jobData?.title ||
@@ -282,15 +349,16 @@ export async function POST(req: NextRequest) {
       ? rawTitle.charAt(0).toUpperCase() + rawTitle.slice(1)
       : "";
 
-    // 2. Company (Yritys - otetaan JSON-LD:stä tai otsikosta, jos organisaationa on Academic Work)
+    // 2. Company (Yritys - poimitaan älykkäästi, jos organisaationa on Academic Work)
     let rawCompany =
       jobData?.hiringOrganization?.name?.trim() ||
       $(".job-title h2").first().text().trim() ||
       $('meta[property="og:site_name"]').attr("content") ||
       "";
 
+    // Jos yrityksenä on Academic Work tai tyhjä, katsotaan löytyykö oikea asiakasyritys otsikosta (esim. "Elektroniikkainsinööri, ABB Oy, Vaasa")
     if (!rawCompany || rawCompany.toLowerCase() === "academic work") {
-      const parts = rawTitle.split(",").map((p: string) => p.trim());
+      const parts = (rawTitle || "").split(",").map((p: string) => p.trim());
       if (parts.length >= 2) {
         rawCompany = parts[1]; // Esim. "ABB Oy"
       } else {
@@ -345,9 +413,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (!location && isJobSite) {
-      const parts = rawTitle.split(",").map((p: string) => p.trim());
+      const parts = (rawTitle || "").split(",").map((p: string) => p.trim());
       if (parts.length >= 3) {
-        location = parts[parts.length - 1];
+        location = parts[parts.length - 1]; // Esim. "Vaasa"
       } else {
         const bodyText = $("main").text();
         const locMatch = bodyText.match(/Location:\s*([^\n]+)/i);
