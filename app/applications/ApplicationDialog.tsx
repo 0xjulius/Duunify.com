@@ -104,6 +104,56 @@ function formatDialogSalary(
   return null;
 }
 
+/**
+ * Renderöi **lihavoinnin** ja "• " -luettelomerkit työpaikkakuvauksesta.
+ * Ei vaadi lisäriippuvuuksia, eikä käytä dangerouslySetInnerHTML:ää.
+ */
+function renderInline(text: string, keyPrefix: string) {
+  const parts = text.split(/\*\*(.+?)\*\*/g);
+  return parts.map((part, i) =>
+    i % 2 === 1 ? (
+      <strong
+        key={`${keyPrefix}-${i}`}
+        className="font-semibold text-slate-900 dark:text-slate-100"
+      >
+        {part}
+      </strong>
+    ) : (
+      <span key={`${keyPrefix}-${i}`}>{part}</span>
+    ),
+  );
+}
+
+function FormattedDescription({ text }: { text: string }) {
+  const lines = text.split("\n");
+
+  return (
+    <div className="space-y-1 break-words">
+      {lines.map((line, i) => {
+        const trimmed = line.trim();
+
+        if (!trimmed) {
+          return <div key={i} className="h-3" />;
+        }
+
+        const bulletMatch = trimmed.match(/^(?:•|-)\s+(.*)$/);
+        if (bulletMatch) {
+          return (
+            <div key={i} className="flex gap-2 pl-1">
+              <span className="shrink-0 text-slate-400">•</span>
+              <span className="min-w-0">
+                {renderInline(bulletMatch[1], `l${i}`)}
+              </span>
+            </div>
+          );
+        }
+
+        return <p key={i}>{renderInline(trimmed, `l${i}`)}</p>;
+      })}
+    </div>
+  );
+}
+
 function DialogMetaChip({
   icon,
   children,
@@ -858,8 +908,12 @@ export default function ApplicationDialog({
                 value="description"
                 className="focus-visible:outline-none"
               >
-                <div className="p-5 md:p-6 rounded-3xl bg-slate-100 dark:bg-[#0d0f1a] border border-slate-200 dark:border-slate-800 shadow-inner text-slate-800 dark:text-slate-300 whitespace-pre-wrap leading-relaxed text-sm md:text-base">
-                  {app.job_description || "Ei kuvausta saatavilla."}
+                <div className="p-5 md:p-6 rounded-3xl bg-slate-100 dark:bg-[#0d0f1a] border border-slate-200 dark:border-slate-800 shadow-inner text-slate-800 dark:text-slate-300 leading-relaxed text-sm md:text-base">
+                  {app.job_description ? (
+                    <FormattedDescription text={app.job_description} />
+                  ) : (
+                    "Ei kuvausta saatavilla."
+                  )}
                 </div>
               </TabsContent>
 
