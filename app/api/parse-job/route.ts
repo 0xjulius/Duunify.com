@@ -76,10 +76,25 @@ function suomennaTyoaika(tyyppiInput: any): string {
   return String(tyyppiInput);
 }
 
-function cleanDescription(rawHtml: string, isJobSiteWithExtras: boolean = false): string {
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&amp;/gi, "&");
+}
+
+function cleanDescription(rawHtml: string, applyAcademicWorkCutoffs: boolean = false): string {
   if (!rawHtml) return "";
 
-  let cleaned = rawHtml
+  // Jos kuvaus on tallennettu HTML-entiteetteinä (&lt;p&gt;...), puretaan se ensin
+  const looksEscaped =
+    !/<[a-z][^>]*>/i.test(rawHtml) && /&lt;[a-z]/i.test(rawHtml);
+
+  let cleaned = (looksEscaped ? decodeHtmlEntities(rawHtml) : rawHtml)
     .replace(/\\n/g, "\n")
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<(b|strong)[^>]*>/gi, "**")
@@ -95,7 +110,11 @@ function cleanDescription(rawHtml: string, isJobSiteWithExtras: boolean = false)
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  if (isJobSiteWithExtras) {
+  cleaned = decodeHtmlEntities(cleaned);
+
+  // Katkaisufraasit vain academicwork.fi-sivuille. Joblyssa ne leikkasivat
+  // kuvauksen pois heti tekoälytiivistelmän jälkeen.
+  if (applyAcademicWorkCutoffs) {
     const cutOffPhrases = [
       "Tule osaksi Academic Workin",
       "Onko sinulla kysyttävää tästä työpaikasta",
@@ -112,7 +131,7 @@ function cleanDescription(rawHtml: string, isJobSiteWithExtras: boolean = false)
     }
   }
 
-  return cleaned.slice(0, 15000);
+  return cleaned.slice(0, 30000);
 }
 
 /**
@@ -314,6 +333,7 @@ export async function POST(req: NextRequest) {
 
     const $ = cheerio.load(html);
     const isJobSite = url.includes("academicwork.fi") || url.includes("jobly.fi");
+    const isAcademicWork = url.includes("academicwork.fi");
     let jobData: any = null;
 
     $('script[type="application/ld+json"]').each((_, element) => {
@@ -497,7 +517,11 @@ export async function POST(req: NextRequest) {
       rawDescription = $('meta[property="og:description"]').attr("content") || "";
     }
 
-    const description = cleanDescription(rawDescription, isJobSite);
+    const description = cleanDescription(rawDescription, isAcademicWork);
+
+    console.log(
+      `[parse] kuvaus ${description.length} merkkiä (raaka ${rawDescription.length}), lähde JSON-LD: ${!!jobData?.description}`
+    );
 
     if (!title && !description) {
       return NextResponse.json(
