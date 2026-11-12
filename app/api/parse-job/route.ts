@@ -142,7 +142,13 @@ async function fetchJobHtml(targetUrl: string): Promise<string> {
     if (isVercel) {
       const executablePath = await chromium.executablePath();
       browser = await puppeteer.launch({
-        args: chromium.args,
+        args: [
+          ...chromium.args,
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
+        ],
         defaultViewport: { width: 1280, height: 720 },
         executablePath,
         headless: true,
@@ -161,13 +167,11 @@ async function fetchJobHtml(targetUrl: string): Promise<string> {
     await page.setUserAgent(USER_AGENTS[0]);
 
     await page.goto(targetUrl, {
-      waitUntil: targetUrl.includes("academicwork.fi") ? "networkidle2" : "domcontentloaded",
-      timeout: 15000,
+      waitUntil: "domcontentloaded",
+      timeout: 20000,
     });
 
-    if (targetUrl.includes("academicwork.fi")) {
-      await page.waitForSelector("h1", { timeout: 5000 }).catch(() => {});
-    }
+    await page.waitForSelector("h1", { timeout: 8000 }).catch(() => {});
 
     return await page.content();
   } finally {
