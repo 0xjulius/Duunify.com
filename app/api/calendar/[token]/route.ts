@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
+import { ipLimit, tokenLimit } from "@/lib/ratelimit-calendar";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -7,6 +9,10 @@ export const dynamic = "force-dynamic";
 const TZ = "Europe/Helsinki";
 const CAL_NAME = "Duunify – työnhaku";
 const DEFAULT_DURATION_MIN = 60;
+/** Kirjataan viimeinen hakuaika enintään kerran tässä välissä */
+const LAST_FETCH_WRITE_INTERVAL_MS = 60_000;
+/** Paikkamerkki, jotta ETag ei muutu pelkän DTSTAMP-ajan takia */
+const STAMP_PLACEHOLDER = "{{STAMP}}";
 
 const TYPE_LABELS: Record<string, string> = {
   deadline: "Hakuaika päättyy",
@@ -37,6 +43,42 @@ function adminClient() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false } },
   );
+}
+
+// ---------- Rate limit ----------
+
+function getClientIp(req: NextRequest): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  return (
+    forwarded?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
+/** Jos Redis ei vastaa, päästetään pyyntö läpi (kalenterin saatavuus ensin). */
+async function checkLimit(
+  limiter: typeof ipLimit,
+  key: string,
+): Promise<{ ok: boolean; reset: number }> {
+  try {
+    const result = await limiter.limit(key);
+    return { ok: result.success, reset: result.reset };
+  } catch (err) {
+    console.error("[calendar-feed] Rate limit -tarkistus epäonnistui:", err);
+    return { ok: true, reset: 0 };
+  }
+}
+
+function tooManyRequests(reset: number) {
+  const retryAfter = Math.max(1, Math.ceil((reset - Date.now()) / 1000));
+  return new NextResponse("Too many requests", {
+    status: 429,
+    headers: {
+      "Retry-After": String(retryAfter),
+      "Cache-Control": "no-store",
+    },
+  });
 }
 
 // ---------- ICS-apurit (RFC 5545) ----------
@@ -120,7 +162,8 @@ function addMinutes(yyyymmdd: string, hhmm: string, minutes: number): string {
     .replace(/[-:]/g, "");
 }
 
-function buildIcs(events: FeedEvent[]): string {
+/** Rakentaa ICS-tekstin. DTSTAMP on paikkamerkki, jotta sisällöstä saa vakaan ETagin. */
+function buildIcsTemplate(events: FeedEvent[]): string {
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -134,10 +177,12 @@ function buildIcs(events: FeedEvent[]): string {
     "X-PUBLISHED-TTL:PT15M",
   ];
 
-  const stamp = icsStamp();
-
   for (const ev of events) {
-    lines.push("BEGIN:VEVENT", `UID:${ev.uid}`, `DTSTAMP:${stamp}`);
+    lines.push(
+      "BEGIN:VEVENT",
+      `UID:${ev.uid}`,
+      `DTSTAMP:${STAMP_PLACEHOLDER}`,
+    );
 
     if (ev.time) {
       // Kellonaika "kelluvana" paikallisaikana, kuten sovelluksessakin
@@ -178,7 +223,7 @@ function buildIcs(events: FeedEvent[]): string {
 // ---------- Reitti ----------
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: { params: Promise<{ token: string }> },
 ) {
   const { token: rawToken } = await ctx.params;
@@ -189,6 +234,10 @@ export async function GET(
     return new NextResponse("Not found", { status: 404 });
   }
 
+  // 1. Rate limit IP:n mukaan ennen yhtäkään tietokantakutsua
+  const ipResult = await checkLimit(ipLimit, getClientIp(req));
+  if (!ipResult.ok) return tooManyRequests(ipResult.reset);
+
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     console.error("[calendar-feed] SUPABASE_SERVICE_ROLE_KEY puuttuu");
     return new NextResponse("Server misconfigured", { status: 500 });
@@ -198,12 +247,12 @@ export async function GET(
 
   const { data: feed, error: feedError } = await db
     .from("calendar_feeds")
-    .select("user_id")
+    .select("user_id, last_fetched_at")
     .eq("token", token)
     .maybeSingle();
 
   if (feedError) {
-    // Esim. väärä avain (anon-avain service role -avaimen tilalla) tai puuttuva taulu
+    // Esim. väärä avain, puuttuva taulu tai puuttuva last_fetched_at-sarake
     console.error("[calendar-feed] Tokenin haku epäonnistui:", feedError.message);
     return new NextResponse("Internal error", { status: 500 });
   }
@@ -213,7 +262,31 @@ export async function GET(
     return new NextResponse("Not found", { status: 404 });
   }
 
+  // 2. Rate limit tokenin mukaan (vain kelvolliselle tokenille)
+  const tokenResult = await checkLimit(tokenLimit, token);
+  if (!tokenResult.ok) return tooManyRequests(tokenResult.reset);
+
   const userId = feed.user_id as string;
+
+  // 3. Kirjataan viimeinen hakuaika vastauksen jälkeen (enintään kerran minuutissa)
+  const lastFetched = feed.last_fetched_at
+    ? new Date(feed.last_fetched_at).getTime()
+    : 0;
+
+  if (Date.now() - lastFetched > LAST_FETCH_WRITE_INTERVAL_MS) {
+    after(async () => {
+      const { error } = await db
+        .from("calendar_feeds")
+        .update({ last_fetched_at: new Date().toISOString() })
+        .eq("token", token);
+      if (error) {
+        console.error(
+          "[calendar-feed] last_fetched_at-päivitys epäonnistui:",
+          error.message,
+        );
+      }
+    });
+  }
 
   const [appsRes, customRes] = await Promise.all([
     db
@@ -289,13 +362,35 @@ export async function GET(
     });
   }
 
-  return new NextResponse(buildIcs(events), {
+  // 4. ETag sisällöstä: muuttumaton kalenteri palauttaa vain 304
+  const template = buildIcsTemplate(events);
+  const etag = `"${createHash("sha256").update(template).digest("hex").slice(0, 32)}"`;
+
+  const baseHeaders = {
+    ETag: etag,
+    "Cache-Control": "private, max-age=0, must-revalidate",
+    "X-Robots-Tag": "noindex, nofollow",
+  };
+
+  const ifNoneMatch = req.headers.get("if-none-match");
+  const notModified =
+    !!ifNoneMatch &&
+    ifNoneMatch
+      .split(",")
+      .some((t) => t.trim().replace(/^W\//, "") === etag);
+
+  if (notModified) {
+    return new NextResponse(null, { status: 304, headers: baseHeaders });
+  }
+
+  const body = template.split(STAMP_PLACEHOLDER).join(icsStamp());
+
+  return new NextResponse(body, {
     status: 200,
     headers: {
+      ...baseHeaders,
       "Content-Type": "text/calendar; charset=utf-8",
       "Content-Disposition": 'inline; filename="duunify.ics"',
-      "Cache-Control": "private, no-cache, no-store, must-revalidate",
-      "X-Robots-Tag": "noindex, nofollow",
     },
   });
 }

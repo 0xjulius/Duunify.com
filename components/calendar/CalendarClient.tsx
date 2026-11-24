@@ -15,7 +15,7 @@ import {
   deleteCalendarEvent,
   toggleCalendarEventCompleted,
 } from "@/lib/calendar";
-import CalendarSubscribeButton from "./CalendarSubscribeButton";
+import CalendarToolbar from "@/components/calendar/CalendarToolbar";
 
 export default function CalendarClient({
   initialApplications,
@@ -66,15 +66,7 @@ export default function CalendarClient({
   return (
     <div className="w-full max-w-[1600px] mx-auto space-y-6 text-slate-900 dark:text-slate-50 transition-colors duration-200">
       {/* Toimintopalkki */}
-      <div className="flex justify-end">
-        <CalendarSubscribeButton />
-        <button
-          onClick={() => setShowAdd(true)}
-          className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white font-semibold text-sm px-5 py-2.5 rounded-2xl transition-all shadow-sm shadow-indigo-600/25 cursor-pointer"
-        >
-          + Lisää tapahtuma
-        </button>
-      </div>
+      <CalendarToolbar events={events} onAdd={() => setShowAdd(true)} />
 
       {/* PÄÄASSETTELU */}
       <div className="flex flex-col lg:flex-row gap-6 items-start">
