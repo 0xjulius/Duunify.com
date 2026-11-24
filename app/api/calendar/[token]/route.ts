@@ -11,6 +11,15 @@ const CAL_NAME = "Duunify – työnhaku";
 const DEFAULT_DURATION_MIN = 60;
 /** Kirjataan viimeinen hakuaika enintään kerran tässä välissä */
 const LAST_FETCH_WRITE_INTERVAL_MS = 60_000;
+/** Kuinka monta merkkiä työpaikkailmoituksen kuvauksesta otetaan kalenterimerkintään */
+const DESCRIPTION_EXCERPT_CHARS = 600;
+const INTERVIEW_EXCERPT_CHARS = 400;
+const NOTES_EXCERPT_CHARS = 300;
+/**
+ * Hakemuksen omat muistiinpanot kalenterimerkintään? Tilauslinkki toimii kuin salasana,
+ * joten aseta false, jos et halua yksityisiä muistiinpanoja syötteeseen.
+ */
+const INCLUDE_PRIVATE_NOTES = true;
 /** Paikkamerkki, jotta ETag ei muutu pelkän DTSTAMP-ajan takia */
 const STAMP_PLACEHOLDER = "{{STAMP}}";
 
@@ -33,6 +42,34 @@ type FeedEvent = {
   /** Muistutus: koko päivän tapahtumalle edellisenä päivänä klo 9, muuten ennen alkua */
   alarm?: boolean;
   alarmTrigger?: string;
+  /** Julkinen työpaikkailmoituksen osoite (iOS näyttää tämän napautettavana linkkinä) */
+  url?: string;
+};
+
+type AppRow = {
+  id: string;
+  company: string;
+  job_title: string;
+  valid_through: string | null;
+  status: string | null;
+  job_url: string | null;
+  job_description: string | null;
+  location: string | null;
+  employment_type: string | null;
+  salary_min: number | null;
+  salary_max: number | null;
+  notes: string | null;
+};
+
+const EMPLOYMENT_TYPE_FI: Record<string, string> = {
+  FULL_TIME: "Kokoaikainen",
+  PART_TIME: "Osa-aikainen",
+  CONTRACTOR: "Toimeksiantaja",
+  TEMPORARY: "Määräaikainen",
+  INTERN: "Harjoittelija",
+  VOLUNTEER: "Vapaaehtoinen",
+  PER_DIEM: "Päivätyö",
+  OTHER: "Muu",
 };
 
 // Service role ohittaa RLS:n, koska tilaaja (iPhone) ei ole kirjautunut sisään.
@@ -178,11 +215,7 @@ function buildIcsTemplate(events: FeedEvent[]): string {
   ];
 
   for (const ev of events) {
-    lines.push(
-      "BEGIN:VEVENT",
-      `UID:${ev.uid}`,
-      `DTSTAMP:${STAMP_PLACEHOLDER}`,
-    );
+    lines.push("BEGIN:VEVENT", `UID:${ev.uid}`, `DTSTAMP:${STAMP_PLACEHOLDER}`);
 
     if (ev.time) {
       // Kellonaika "kelluvana" paikallisaikana, kuten sovelluksessakin
@@ -202,6 +235,7 @@ function buildIcsTemplate(events: FeedEvent[]): string {
     lines.push(`SUMMARY:${escapeText(ev.title)}`);
     if (ev.description) lines.push(`DESCRIPTION:${escapeText(ev.description)}`);
     if (ev.category) lines.push(`CATEGORIES:${escapeText(ev.category)}`);
+    if (ev.url) lines.push(`URL;VALUE=URI:${ev.url}`);
 
     if (ev.alarm) {
       lines.push(
@@ -218,6 +252,96 @@ function buildIcsTemplate(events: FeedEvent[]): string {
 
   lines.push("END:VCALENDAR");
   return lines.map(fold).join("\r\n") + "\r\n";
+}
+
+// ---------- Kuvauksen sisältö ----------
+
+/** Sallitaan vain http(s)-osoitteet. Palauttaa normalisoidun osoitteen. */
+function safeUrl(raw?: string | null): string | null {
+  if (!raw) return null;
+  try {
+    const u = new URL(raw.trim());
+    return u.protocol === "http:" || u.protocol === "https:" ? u.href : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Poistaa markdown-lihavoinnit ja HTML:n, koska kalenteri näyttää pelkkää tekstiä. */
+function plainText(raw: string): string {
+  return raw
+    .replace(/\*\*/g, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/[ \t]+/g, " ")
+    .split("\n")
+    .map((l) => l.trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** Lyhentää tekstin sanan tai virkkeen rajalta ja lisää "…". */
+function excerpt(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const boundary = Math.max(
+    cut.lastIndexOf("\n"),
+    cut.lastIndexOf(". "),
+    cut.lastIndexOf(" "),
+  );
+  return `${(boundary > max * 0.6 ? cut.slice(0, boundary + 1) : cut).trimEnd()}…`;
+}
+
+/** YYYYMMDD -> 30.11.2026 */
+function formatFiDate(yyyymmdd: string): string {
+  return `${Number(yyyymmdd.slice(6, 8))}.${Number(yyyymmdd.slice(4, 6))}.${yyyymmdd.slice(0, 4)}`;
+}
+
+function formatSalary(min?: number | null, max?: number | null): string | null {
+  if (!min && !max) return null;
+  const fmt = (n: number) => n.toLocaleString("fi-FI") + " €";
+  if (min && max) return `${fmt(min)} – ${fmt(max)}`;
+  if (min) return `alkaen ${fmt(min)}`;
+  return `enintään ${fmt(max as number)}`;
+}
+
+function employmentLabel(raw?: string | null): string | null {
+  if (!raw) return null;
+  const labels = raw
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .map((t) => EMPLOYMENT_TYPE_FI[t.toUpperCase()] ?? t);
+  return labels.length ? labels.join(", ") : null;
+}
+
+/** Sijainti, työaika ja palkka riveinä (vain ne, jotka tiedetään). */
+function factLines(a: AppRow): string[] {
+  const lines: string[] = [];
+  if (a.location) lines.push(`📍 ${a.location}`);
+  const type = employmentLabel(a.employment_type);
+  if (type) lines.push(`💼 ${type}`);
+  const salary = formatSalary(a.salary_min, a.salary_max);
+  if (salary) lines.push(`💶 ${salary}`);
+  return lines;
+}
+
+function excerptBlock(
+  raw: string | null | undefined,
+  max: number,
+): string | null {
+  if (!raw) return null;
+  const text = plainText(raw);
+  return text ? `Tehtävästä:\n${excerpt(text, max)}` : null;
+}
+
+function joinBlocks(blocks: (string | null | undefined)[]): string | undefined {
+  const joined = blocks.filter(Boolean).join("\n\n");
+  return joined || undefined;
 }
 
 // ---------- Reitti ----------
@@ -253,7 +377,10 @@ export async function GET(
 
   if (feedError) {
     // Esim. väärä avain, puuttuva taulu tai puuttuva last_fetched_at-sarake
-    console.error("[calendar-feed] Tokenin haku epäonnistui:", feedError.message);
+    console.error(
+      "[calendar-feed] Tokenin haku epäonnistui:",
+      feedError.message,
+    );
     return new NextResponse("Internal error", { status: 500 });
   }
 
@@ -291,7 +418,9 @@ export async function GET(
   const [appsRes, customRes] = await Promise.all([
     db
       .from("applications")
-      .select("id, company, job_title, valid_through, status")
+      .select(
+        "id, company, job_title, valid_through, status, job_url, job_description, location, employment_type, salary_min, salary_max, notes",
+      )
       .eq("user_id", userId),
     db
       .from("calendar_events")
@@ -322,11 +451,25 @@ export async function GET(
 
     const status = (a.status ?? "").toLowerCase();
     const applied = status === "haettu" || status === "haastattelu";
+    const jobUrl = safeUrl(a.job_url);
 
     events.push({
       uid: `deadline-${a.id}@duunify`,
       title: `Hakuaika päättyy${applied ? " (Haettu ✓)" : ""}: ${a.company} – ${a.job_title}`,
-      description: `${a.company} · ${a.job_title}\nTila: ${a.status ?? "-"}`,
+      description: joinBlocks([
+        `${a.company} – ${a.job_title}`,
+        [
+          `⏰ Hakuaika päättyy ${formatFiDate(day)}`,
+          `📌 Tila: ${a.status ?? "-"}`,
+          ...factLines(a),
+        ].join("\n"),
+        excerptBlock(a.job_description, DESCRIPTION_EXCERPT_CHARS),
+        jobUrl ? `🔗 Koko ilmoitus:\n${jobUrl}` : null,
+        INCLUDE_PRIVATE_NOTES && a.notes?.trim()
+          ? `📝 Omat muistiinpanot:\n${excerpt(plainText(a.notes), NOTES_EXCERPT_CHARS)}`
+          : null,
+      ]),
+      url: jobUrl ?? undefined,
       category: TYPE_LABELS.deadline,
       date: day,
       time: null,
@@ -345,15 +488,20 @@ export async function GET(
     const time = e.event_time ? String(e.event_time).slice(0, 5) : null;
     const app = e.application_id ? appById.get(e.application_id) : undefined;
 
-    const descriptionParts = [
-      app ? `${app.company} · ${app.job_title}` : null,
-      e.notes || null,
-    ].filter(Boolean) as string[];
+    const appUrl = app ? safeUrl(app.job_url) : null;
 
     events.push({
       uid: `event-${e.id}@duunify`,
       title: `${e.completed ? "✓ " : ""}${e.title}`,
-      description: descriptionParts.join("\n") || undefined,
+      description: joinBlocks([
+        e.notes?.trim() ? `📝 Muistiinpanot:\n${String(e.notes).trim()}` : null,
+        app
+          ? [`${app.company} – ${app.job_title}`, ...factLines(app)].join("\n")
+          : null,
+        app ? excerptBlock(app.job_description, INTERVIEW_EXCERPT_CHARS) : null,
+        appUrl ? `🔗 Työpaikkailmoitus:\n${appUrl}` : null,
+      ]),
+      url: appUrl ?? undefined,
       category: TYPE_LABELS[e.type] ?? TYPE_LABELS.other,
       date: day,
       time,
@@ -375,9 +523,7 @@ export async function GET(
   const ifNoneMatch = req.headers.get("if-none-match");
   const notModified =
     !!ifNoneMatch &&
-    ifNoneMatch
-      .split(",")
-      .some((t) => t.trim().replace(/^W\//, "") === etag);
+    ifNoneMatch.split(",").some((t) => t.trim().replace(/^W\//, "") === etag);
 
   if (notModified) {
     return new NextResponse(null, { status: 304, headers: baseHeaders });
