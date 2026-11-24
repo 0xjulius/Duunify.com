@@ -77,6 +77,7 @@ export async function proxy(request: NextRequest) {
       redirectUrl
     );
 
+    
     // Säilytetään session evästeet
     sessionResponse.cookies.getAll().forEach((cookie) => {
       const { name, value, ...options } = cookie;
