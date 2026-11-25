@@ -8,7 +8,6 @@ import DemoBanner from "@/components/demo/DemoBanner";
 import PageHeader from "@/components/PageHeader";
 import CalendarView from "@/components/calendar/CalendarView";
 import QuickEvents from "@/components/calendar/QuickEvents";
-import EventDetailModal from "@/components/calendar/EventDetailModal";
 import MiniCalendar from "@/components/calendar/MiniCalendar";
 import { Calendar, X, Briefcase, Calendar as CalendarIcon, Clock, AlignLeft, Tag } from "lucide-react";
 
@@ -192,16 +191,6 @@ export default function DemoCalendarPage() {
             </div>
           </div>
 
-          {/* DETALJIMODAALI */}
-          {selectedEvent && (
-            <EventDetailModal
-              event={selectedEvent}
-              open={!!selectedEvent}
-              onOpenChange={(open: boolean) => !open && setSelectedEvent(null)}
-              onDelete={handleDelete}
-              onToggleCompleted={handleToggleCompleted}
-            />
-          )}
 
           {/* DEMO-TASON LISÄYSLOMAKE (VISUAALINEN INTERCEPTOINTI) */}
           {showDemoAdd && (

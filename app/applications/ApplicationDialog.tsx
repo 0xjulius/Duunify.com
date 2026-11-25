@@ -636,10 +636,11 @@ export default function ApplicationDialog({
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pr-8 md:pr-10">
             <div className="flex items-center gap-3.5 min-w-0 flex-1">
-              <div className="h-11 w-11 shrink-0 flex items-center justify-center">
+              <div className="shrink-0 flex items-center justify-center">
                 <CompanyLogo
                   logo={app.company_logo || app.logo}
                   company={companyName || "Yritys"}
+                  size="lg"
                 />
               </div>
               <div className="min-w-0 flex-1">
