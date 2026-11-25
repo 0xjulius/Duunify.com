@@ -4,23 +4,25 @@ export const dynamic = "force-dynamic";
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import PageHero from "@/components/PageHero";
 import { CompanyLogo } from "@/components/applications/CompanyLogo";
+import QuickAddApplication from "@/components/applications/QuickAddApplication";
 import {
   Bookmark,
-  Filter,
   Clock,
   Search,
   X,
   Trash2,
   ArchiveRestore,
   Eye,
+  AlertTriangle,
 } from "lucide-react";
 import ApplicationDialog from "@/app/applications/ApplicationDialog";
-import AddApplicationForm from "@/app/applications/AddApplicationForm";
 
 type FavoriteJob = {
   id: string;
@@ -50,10 +52,13 @@ export default function SavedJobsPage() {
   const [search, setSearch] = useState("");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [showForm, setShowForm] = useState(false);
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState<FavoriteJob | null>(null);
+  const [pendingArchiveJob, setPendingArchiveJob] = useState<FavoriteJob | null>(
+    null,
+  );
+  const [archiving, setArchiving] = useState(false);
 
-  // Tila stat-modalille
   const [activeStatFilter, setActiveStatFilter] = useState<StatType>(null);
 
   const handleOpenJob = (job: FavoriteJob) => {
@@ -98,11 +103,8 @@ export default function SavedJobsPage() {
     setLoading(false);
   }, [router]);
 
-  const toggleArchive = async (e: React.MouseEvent, job: FavoriteJob) => {
-    e.stopPropagation();
-    const isArchived = job.status?.toLowerCase() === "arkistoitu";
-    const newStatus = isArchived ? "Tallennettu" : "Arkistoitu";
-
+  const applyArchiveStatus = async (job: FavoriteJob, newStatus: string) => {
+    const previousJobs = jobs;
     setJobs((prev) =>
       prev.map((j) => (j.id === job.id ? { ...j, status: newStatus } : j)),
     );
@@ -114,7 +116,41 @@ export default function SavedJobsPage() {
 
     if (error) {
       console.error("Virhe statuksen päivittämisessä:", error);
+      setJobs(previousJobs);
+      toast.error("Tilan päivittäminen epäonnistui.");
       fetchFavorites();
+      return;
+    }
+
+    if (newStatus === "Arkistoitu") {
+      toast.success(
+        `Työpaikka "${job.job_title}" (${job.company}) siirrettiin arkistoon.`,
+      );
+    } else {
+      toast.success(
+        `Työpaikka "${job.job_title}" (${job.company}) palautettiin tallennettuihin.`,
+      );
+    }
+  };
+
+  const handleArchiveClick = (e: React.MouseEvent, job: FavoriteJob) => {
+    e.stopPropagation();
+    const isArchived = job.status?.toLowerCase() === "arkistoitu";
+    if (isArchived) {
+      void applyArchiveStatus(job, "Tallennettu");
+      return;
+    }
+    setPendingArchiveJob(job);
+  };
+
+  const handleConfirmArchive = async () => {
+    if (!pendingArchiveJob || archiving) return;
+    setArchiving(true);
+    try {
+      await applyArchiveStatus(pendingArchiveJob, "Arkistoitu");
+      setPendingArchiveJob(null);
+    } finally {
+      setArchiving(false);
     }
   };
 
@@ -122,12 +158,6 @@ export default function SavedJobsPage() {
     fetchFavorites();
   }, [fetchFavorites]);
 
-  function handleAddSuccess() {
-    setShowForm(false);
-    fetchFavorites();
-  }
-
-  // --- STATS-LASKURIT JA SUODATUKSET ---
   const activeJobs = jobs.filter(
     (j) => j.status?.toLowerCase() !== "arkistoitu",
   );
@@ -200,9 +230,8 @@ export default function SavedJobsPage() {
 
       <div className="flex-1 overflow-auto flex flex-col min-w-0">
         <Header />
-        
-        <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full flex flex-col gap-6">
-          {/* UUSI PAGEHERO */}
+
+        <div className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 max-w-[1600px] mx-auto w-full flex flex-col gap-6">
           <PageHero
             icon={Bookmark}
             title="Tallennetut työpaikat"
@@ -225,29 +254,15 @@ export default function SavedJobsPage() {
               </div>
 
               <button
-                onClick={() => setShowForm((prev) => !prev)}
-                className="bg-indigo-600 dark:bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm whitespace-nowrap hover:bg-indigo-700 dark:hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-600/25"
+                type="button"
+                onClick={() => setIsQuickAddOpen(true)}
+                className="bg-indigo-600 dark:bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm whitespace-nowrap hover:bg-indigo-700 dark:hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-600/25 cursor-pointer"
               >
-                {showForm ? "Sulje lomake" : "+ Tallenna työpaikka"}
+                + Tallenna työpaikka
               </button>
             </div>
           </PageHero>
 
-          {/* INLINE LOMAKE */}
-          {showForm && (
-            <div className="relative border border-slate-200 dark:border-slate-800/80 rounded-3xl overflow-hidden bg-white dark:bg-[#131622] shadow-xl">
-              <button
-                onClick={() => setShowForm(false)}
-                className="absolute top-4 right-4 z-10 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition"
-                aria-label="Sulje lomake"
-              >
-                <X size={18} />
-              </button>
-              <AddApplicationForm onSuccess={handleAddSuccess} />
-            </div>
-          )}
-
-          {/* STATS KORTIT */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <button
               onClick={() => setActiveStatFilter("tallennetut")}
@@ -326,9 +341,7 @@ export default function SavedJobsPage() {
             </button>
           </div>
 
-          {/* MAIN CONTENT AREA */}
           <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
-            {/* VASEN REUNA: AKTIIVISET TYÖPAIKAT */}
             <div className="xl:col-span-3 min-w-0 flex flex-col gap-4">
               <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar items-center">
                 {["Kaikki", "Päättyy pian"].map((tab) => (
@@ -389,7 +402,8 @@ export default function SavedJobsPage() {
                           </div>
                         )}
                         <button
-                          onClick={(e) => toggleArchive(e, job)}
+                          type="button"
+                          onClick={(e) => handleArchiveClick(e, job)}
                           className="p-2 rounded-xl border border-slate-200 dark:border-slate-800/80 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-400 text-slate-400 transition-colors cursor-pointer"
                           title="Siirrä arkistoon"
                         >
@@ -402,7 +416,6 @@ export default function SavedJobsPage() {
               </div>
             </div>
 
-            {/* OIKEA REUNA: ARKISTO */}
             <div className="flex flex-col gap-3 w-full">
               <h3 className="font-bold text-sm sm:text-base text-slate-500 dark:text-slate-400 flex items-center gap-2">
                 <Trash2 size={16} /> Arkistoidut / Roskakori
@@ -441,7 +454,8 @@ export default function SavedJobsPage() {
                         </div>
                       </div>
                       <button
-                        onClick={(e) => toggleArchive(e, job)}
+                        type="button"
+                        onClick={(e) => handleArchiveClick(e, job)}
                         className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800/80 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-400 text-slate-400 transition-colors shrink-0 cursor-pointer"
                         title="Palauta tallennettuihin"
                       >
@@ -456,7 +470,97 @@ export default function SavedJobsPage() {
         </div>
       </div>
 
-      {/* STATS MODAL */}
+      {/* SELKEÄ VAHVISTUSMODAALI ARKISTOINTIIN (FADE IN / FADE OUT) */}
+      <AnimatePresence>
+        {pendingArchiveJob && (
+          <motion.div
+            key="archive-confirm-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onClick={() => !archiving && setPendingArchiveJob(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
+          >
+            <motion.div
+              key="archive-confirm-modal"
+              initial={{ opacity: 0, scale: 0.96, y: 6 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 6 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-[#131622] border border-slate-200 dark:border-slate-800/80 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <div className="h-2.5 w-full bg-indigo-600" />
+
+              <div className="p-5 sm:p-6 space-y-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="h-12 w-12 rounded-2xl bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                      <Trash2 size={22} />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 leading-tight">
+                        Siirretäänkö arkistoon?
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Vahvista työpaikan arkistointi
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setPendingArchiveJob(null)}
+                    disabled={archiving}
+                    className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer shrink-0 disabled:opacity-50"
+                    aria-label="Sulje"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 flex items-start gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                    <AlertTriangle size={18} />
+                  </div>
+                  <div className="text-left space-y-1 min-w-0">
+                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                      {pendingArchiveJob.company} –{" "}
+                      {pendingArchiveJob.job_title}
+                    </p>
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                      Ilmoitus siirretään arkistoidut-osioon. Voit palauttaa sen
+                      takaisin tallennettuihin milloin tahansa.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-1 border-t border-slate-100 dark:border-slate-800/80 grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPendingArchiveJob(null)}
+                    disabled={archiving}
+                    className="w-full py-2.5 px-4 rounded-2xl text-sm font-semibold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/15 dark:hover:bg-indigo-500/25 text-indigo-600 dark:text-indigo-300 transition cursor-pointer disabled:opacity-50"
+                  >
+                    Peruuta
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmArchive}
+                    disabled={archiving}
+                    className="w-full py-2.5 px-4 rounded-2xl text-sm font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-sm shadow-rose-600/25 flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50"
+                  >
+                    <Trash2 size={16} />
+                    <span>{archiving ? "Siirretään..." : "Arkistoi"}</span>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div
         onClick={() => setActiveStatFilter(null)}
         className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm transition-all duration-300 cursor-pointer ${
@@ -533,6 +637,14 @@ export default function SavedJobsPage() {
           </div>
         </div>
       </div>
+
+      <QuickAddApplication
+        open={isQuickAddOpen}
+        onOpenChange={setIsQuickAddOpen}
+        onSuccess={() => {
+          fetchFavorites();
+        }}
+      />
 
       <ApplicationDialog
         open={isModalOpen}

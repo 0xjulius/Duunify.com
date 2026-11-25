@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useModal } from "@/components/logout/ModalProvider";
 import Link from "next/link";
@@ -22,20 +22,80 @@ import {
 export default function Header() {
   const [user, setUser] = useState<any>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [hideHeader, setHideHeader] = useState(false);
   const { showLogout } = useModal();
+
+  const headerRef = useRef<HTMLElement | null>(null);
+  const scrollPositionsRef = useRef<WeakMap<EventTarget, number>>(new WeakMap());
 
   useEffect(() => {
     async function fetchUser() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      
+
       if (session) {
         setUser(session.user);
       }
     }
 
     fetchUser();
+  }, []);
+
+  useEffect(() => {
+    const getScrollKey = (target: EventTarget | null): EventTarget => {
+      if (!target || target === document) {
+        return window;
+      }
+      return target;
+    };
+
+    const getScrollY = (key: EventTarget): number => {
+      if (key === window) {
+        return window.scrollY || document.documentElement.scrollTop || 0;
+      }
+      if (key instanceof HTMLElement) {
+        return key.scrollTop;
+      }
+      return 0;
+    };
+
+    const handleScroll = (event: Event) => {
+      const activeEl = document.activeElement;
+      if (
+        headerRef.current &&
+        activeEl &&
+        headerRef.current.contains(activeEl) &&
+        activeEl.getAttribute("aria-expanded") === "true"
+      ) {
+        setHideHeader(false);
+        return;
+      }
+
+      const key = getScrollKey(event.target);
+      const currentY = Math.max(0, getScrollY(key));
+      const prevY = scrollPositionsRef.current.get(key) ?? currentY;
+      const delta = currentY - prevY;
+
+      scrollPositionsRef.current.set(key, currentY);
+
+      if (currentY <= 12) {
+        setHideHeader(false);
+      } else if (delta > 6 && currentY > 50) {
+        setHideHeader(true);
+      } else if (delta < -6) {
+        setHideHeader(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, {
+      passive: true,
+      capture: true,
+    });
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll, { capture: true });
+    };
   }, []);
 
   const userName =
@@ -46,8 +106,12 @@ export default function Header() {
 
   return (
     <>
-      <header className="h-20 w-full bg-white/80 dark:bg-[#12141c]/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-40">
-        {/* Logo (Mobiilissa hieman pienempi teksti, jotta säästää tilaa) */}
+      <header
+        ref={headerRef}
+        className={`h-20 w-full bg-white/80 dark:bg-[#12141c]/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-40 transition-transform duration-300 ease-out will-change-transform ${
+          hideHeader ? "-translate-y-full pointer-events-none" : "translate-y-0"
+        }`}
+      >
         <div className="flex items-center gap-2 sm:gap-4 shrink-0">
           <Link
             href="/"
@@ -59,12 +123,9 @@ export default function Header() {
           </Link>
         </div>
 
-        {/* Oikean reunan toiminnot */}
         <div className="flex items-center gap-1.5 sm:gap-3">
-          {/* AI-krediittisaldo */}
           <AiCreditsBadge />
 
-          {/* Lisää työpaikka -painike */}
           <button
             onClick={() => setIsAddModalOpen(true)}
             className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold shadow-sm hover:shadow transition-all active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
@@ -75,10 +136,8 @@ export default function Header() {
             <span className="hidden sm:inline md:hidden">Lisää</span>
           </button>
 
-          {/* Ilmoitukset */}
           <NotificationsDropdown />
 
-          {/* Profiilivalikko */}
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/60 transition outline-none cursor-pointer shrink-0">
               <div className="h-9 w-9 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm overflow-hidden shrink-0">
