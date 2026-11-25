@@ -30,6 +30,8 @@ import {
   Coins,
   Briefcase,
   ChevronDown,
+  Pencil,
+  Check,
 } from "lucide-react";
 
 type Props = {
@@ -104,10 +106,6 @@ function formatDialogSalary(
   return null;
 }
 
-/**
- * Renderöi **lihavoinnin** ja "• " -luettelomerkit työpaikkakuvauksesta.
- * Ei vaadi lisäriippuvuuksia, eikä käytä dangerouslySetInnerHTML:ää.
- */
 function renderInline(text: string, keyPrefix: string) {
   const parts = text.split(/\*\*(.+?)\*\*/g);
   return parts.map((part, i) =>
@@ -173,11 +171,6 @@ function DialogMetaChip({
   );
 }
 
-/**
- * Palauttaa true, jos kosketuksen kohteesta ylöspäin (rajaelementtiin asti)
- * löytyy vieritettävä elementti, jota on jo vieritetty alas.
- * Silloin sormen veto alaspäin on tarkoitettu vierittämiseen, ei dialogin sulkemiseen.
- */
 function isScrolledInside(target: EventTarget | null, boundary: HTMLElement) {
   let el = target as HTMLElement | null;
   while (el && el !== boundary) {
@@ -198,6 +191,15 @@ export default function ApplicationDialog({
   const [currentCvUrl, setCurrentCvUrl] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  const [companyName, setCompanyName] = useState<string>("");
+  const [jobTitle, setJobTitle] = useState<string>("");
+  const [locationName, setLocationName] = useState<string>("");
+  const [editingField, setEditingField] = useState<
+    "company" | "job_title" | "location" | null
+  >(null);
+  const [draftValue, setDraftValue] = useState<string>("");
+  const [savingHeaderField, setSavingHeaderField] = useState(false);
 
   const [currentStatus, setCurrentStatus] = useState<string>("Haettu");
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -221,7 +223,6 @@ export default function ApplicationDialog({
   const [isSwiping, setIsSwiping] = useState<boolean>(false);
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    // Jos kosketus alkaa vieritetyn alueen sisältä, kyse on vierityksestä
     if (isScrolledInside(e.target, e.currentTarget as HTMLElement)) {
       swipeAllowed.current = false;
       return;
@@ -270,11 +271,17 @@ export default function ApplicationDialog({
       setTranslateY(0);
       setStatusMenuOpen(false);
       setIsEditingNotes(false);
+      setEditingField(null);
     }
   }, [open]);
 
   useEffect(() => {
     if (open && app) {
+      setCompanyName(app.company || "");
+      setJobTitle(app.job_title || "");
+      setLocationName(app.location || "");
+      setEditingField(null);
+
       const cvVal = app.cv_url || null;
       setCurrentCvUrl(cvVal);
       setCurrentStatus(app.status || "Haettu");
@@ -288,6 +295,73 @@ export default function ApplicationDialog({
       setIsNotesOpen(hasContent);
     }
   }, [open, app, isDemo]);
+
+  function startEditingField(field: "company" | "job_title" | "location") {
+    if (savingHeaderField) return;
+    if (isDemo) {
+      toast.info("Tietojen muokkaus ei ole käytössä demotilassa.");
+      return;
+    }
+    setEditingField(field);
+    if (field === "company") setDraftValue(companyName);
+    if (field === "job_title") setDraftValue(jobTitle);
+    if (field === "location") setDraftValue(locationName);
+  }
+
+  function cancelEditingField() {
+    setEditingField(null);
+    setDraftValue("");
+  }
+
+  async function saveHeaderField(field: "company" | "job_title" | "location") {
+    if (!app?.id || savingHeaderField) return;
+
+    const trimmed = draftValue.trim();
+    if ((field === "company" || field === "job_title") && !trimmed) {
+      toast.error(
+        field === "company"
+          ? "Yrityksen nimi ei voi olla tyhjä."
+          : "Tehtävänimike ei voi olla tyhjä.",
+      );
+      return;
+    }
+
+    const currentVal =
+      field === "company"
+        ? companyName
+        : field === "job_title"
+          ? jobTitle
+          : locationName;
+
+    const nextVal = field === "location" ? trimmed || null : trimmed;
+    if ((currentVal || null) === nextVal) {
+      cancelEditingField();
+      return;
+    }
+
+    setSavingHeaderField(true);
+    try {
+      const { error } = await supabase
+        .from("applications")
+        .update({ [field]: nextVal })
+        .eq("id", app.id);
+
+      if (error) throw error;
+
+      if (field === "company") setCompanyName(trimmed);
+      if (field === "job_title") setJobTitle(trimmed);
+      if (field === "location") setLocationName(trimmed);
+
+      setEditingField(null);
+      toast.success("Tiedot päivitetty!");
+      if (onUpdate) onUpdate();
+    } catch (error: any) {
+      console.error("Virhe tietojen päivityksessä:", error);
+      toast.error("Tietojen päivitys epäonnistui.");
+    } finally {
+      setSavingHeaderField(false);
+    }
+  }
 
   const fetchHistory = useCallback(async () => {
     if (!app?.id || isDemo) return;
@@ -544,10 +618,8 @@ export default function ApplicationDialog({
         }}
         className="!max-w-4xl !w-[95vw] md:!w-[90vw] h-[85vh] max-h-[85vh] p-0 overflow-hidden flex flex-col bg-white dark:bg-[#111422] border-slate-200 dark:border-slate-800/80 rounded-3xl shadow-2xl select-none"
       >
-        {/* MOBIILIN VETOPAULA (HANDLE) */}
         <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto my-2.5 md:hidden shrink-0 cursor-grab active:cursor-grabbing" />
 
-        {/* KIINTEÄ YLÄPISSELI (HEADER & SULKUNAPPI) */}
         <div className="relative px-5 pt-2 pb-3 md:px-8 md:pt-7 md:pb-6 border-b border-slate-100 dark:border-slate-800/80 bg-white/95 dark:bg-[#111422]/95 backdrop-blur-md z-20 shrink-0">
           <div className="absolute top-2 right-4 md:top-6 md:right-6">
             <DialogClose asChild>
@@ -563,30 +635,169 @@ export default function ApplicationDialog({
           </div>
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pr-8 md:pr-10">
-            <div className="flex items-center gap-3.5 min-w-0">
+            <div className="flex items-center gap-3.5 min-w-0 flex-1">
               <div className="h-11 w-11 shrink-0 flex items-center justify-center">
                 <CompanyLogo
                   logo={app.company_logo || app.logo}
-                  company={app.company || "Yritys"}
+                  company={companyName || "Yritys"}
                 />
               </div>
-              <div className="min-w-0">
-                <DialogTitle className="text-lg md:text-2xl font-bold text-slate-900 dark:text-slate-50 truncate">
-                  {app.company}
-                </DialogTitle>
-                <h2 className="text-xs md:text-base font-medium text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                  {app.job_title}
-                </h2>
+              <div className="min-w-0 flex-1">
+                {editingField === "company" ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={draftValue}
+                      onChange={(e) => setDraftValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveHeaderField("company");
+                        if (e.key === "Escape") cancelEditingField();
+                      }}
+                      disabled={savingHeaderField}
+                      autoFocus
+                      className="select-text w-full max-w-xs px-2.5 py-1 text-base md:text-xl font-bold bg-white dark:bg-[#181b2a] text-slate-900 dark:text-slate-50 border border-indigo-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => saveHeaderField("company")}
+                      disabled={savingHeaderField}
+                      className="p-2 md:p-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer disabled:opacity-50"
+                      title="Tallenna"
+                    >
+                      <Check size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEditingField}
+                      disabled={savingHeaderField}
+                      className="p-2 md:p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer"
+                      title="Peruuta"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => startEditingField("company")}
+                    className="group/edit flex items-center gap-1.5 text-left max-w-full min-h-[32px] md:min-h-0 cursor-pointer rounded-lg -mx-1 px-1 py-0.5 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 active:bg-slate-100 dark:active:bg-slate-800/80 transition"
+                    title="Klikkaa muokataksesi yritystä"
+                  >
+                    <DialogTitle className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-50 truncate">
+                      {companyName || "Yritys"}
+                    </DialogTitle>
+                    <Pencil
+                      size={14}
+                      className="text-slate-400 opacity-0 group-hover/edit:opacity-100 group-hover/edit:text-indigo-500 transition shrink-0"
+                    />
+                  </button>
+                )}
 
-                <p className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">
-                  <MapPin size={12} className="text-indigo-500 shrink-0" />
-                  <span>{app.location || "Sijainti ei tiedossa"}</span>
-                </p>
+                {editingField === "job_title" ? (
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <input
+                      type="text"
+                      value={draftValue}
+                      onChange={(e) => setDraftValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveHeaderField("job_title");
+                        if (e.key === "Escape") cancelEditingField();
+                      }}
+                      disabled={savingHeaderField}
+                      autoFocus
+                      className="select-text w-full max-w-xs px-2.5 py-1 text-lg md:text-lg font-medium bg-white dark:bg-[#181b2a] text-slate-900 dark:text-slate-100 border border-indigo-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => saveHeaderField("job_title")}
+                      disabled={savingHeaderField}
+                      className="p-2 md:p-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer disabled:opacity-50"
+                      title="Tallenna"
+                    >
+                      <Check size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEditingField}
+                      disabled={savingHeaderField}
+                      className="p-2 md:p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer"
+                      title="Peruuta"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => startEditingField("job_title")}
+                    className="group/edit flex items-center gap-1.5 text-left max-w-full min-h-[28px] md:min-h-0 mt-0.5 cursor-pointer rounded-lg -mx-1 px-1 py-0.5 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 active:bg-slate-100 dark:active:bg-slate-800/80 transition"
+                    title="Klikkaa muokataksesi tehtävänimikettä"
+                  >
+                    <h2 className="text-md md:text-md font-medium text-slate-500 dark:text-slate-400 truncate">
+                      {jobTitle || "Tehtävänimike"}
+                    </h2>
+                    <Pencil
+                      size={13}
+                      className="text-slate-400 opacity-0 group-hover/edit:opacity-100 group-hover/edit:text-indigo-500 transition shrink-0"
+                    />
+                  </button>
+                )}
+
+                {editingField === "location" ? (
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <input
+                      type="text"
+                      value={draftValue}
+                      onChange={(e) => setDraftValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveHeaderField("location");
+                        if (e.key === "Escape") cancelEditingField();
+                      }}
+                      disabled={savingHeaderField}
+                      autoFocus
+                      placeholder="Sijainti..."
+                      className="select-text w-full max-w-[200px] px-2 py-0.5 text-xs bg-white dark:bg-[#181b2a] text-slate-900 dark:text-slate-100 border border-indigo-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => saveHeaderField("location")}
+                      disabled={savingHeaderField}
+                      className="p-1.5 md:p-1 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer disabled:opacity-50"
+                      title="Tallenna"
+                    >
+                      <Check size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEditingField}
+                      disabled={savingHeaderField}
+                      className="p-1.5 md:p-1 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer"
+                      title="Peruuta"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => startEditingField("location")}
+                    className="group/edit flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 min-h-[26px] md:min-h-0 mt-1 truncate cursor-pointer rounded-md -mx-1 px-1 py-0.5 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 active:bg-slate-100 dark:active:bg-slate-800/80 transition"
+                    title="Klikkaa muokataksesi sijaintia"
+                  >
+                    <MapPin size={12} className="text-indigo-500 shrink-0" />
+                    <span className="truncate">
+                      {locationName || "Sijainti ei tiedossa"}
+                    </span>
+                    <Pencil
+                      size={11}
+                      className="text-slate-400 opacity-0 group-hover/edit:opacity-100 group-hover/edit:text-indigo-500 transition shrink-0"
+                    />
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* STATUS & LINKKI */}
-            <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
               <div
                 className="relative inline-block text-left"
                 ref={statusMenuRef}
@@ -649,7 +860,6 @@ export default function ApplicationDialog({
             </div>
           </div>
 
-          {/* KESKEISET PÄIVÄMÄÄRÄT JA METADATA */}
           <div className="flex items-center gap-2 pt-2.5 overflow-x-auto no-scrollbar scroll-smooth -mx-5 px-5 md:mx-0 md:px-0 md:flex-wrap">
             {isSavedOnly ? (
               <DialogMetaChip
@@ -703,11 +913,8 @@ export default function ApplicationDialog({
           </div>
         </div>
 
-        {/* VIERITETTÄVÄ ALUE */}
         <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-6 text-left">
-          {/* LIITETIEDOSTOT & MUISTIINPANOT GRID */}
           <div className="grid grid-cols-2 gap-3 md:gap-6 items-start">
-            {/* LIITETIEDOSTOT */}
             <div className="space-y-2.5 flex flex-col min-w-0">
               <div className="h-7 flex items-center justify-between">
                 <button
@@ -813,7 +1020,6 @@ export default function ApplicationDialog({
               )}
             </div>
 
-            {/* MUISTIINPANOT */}
             <div className="space-y-2.5 flex flex-col min-w-0">
               <div className="h-7 flex items-center justify-between">
                 <button
@@ -888,7 +1094,6 @@ export default function ApplicationDialog({
                     <div
                       className="select-text p-3 bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/60 text-xs sm:text-sm h-full overflow-y-auto cursor-pointer hover:border-slate-300 dark:hover:border-slate-600 transition-colors"
                       onClick={() => {
-                        // Tekstin valinta ei saa avata muokkaustilaa
                         if (window.getSelection()?.toString()) return;
                         setIsEditingNotes(true);
                       }}
@@ -909,7 +1114,6 @@ export default function ApplicationDialog({
             </div>
           </div>
 
-          {/* VÄLILEHDET */}
           <div className="border-t border-slate-100 dark:border-slate-800/80 pt-6">
             <Tabs defaultValue="description" className="w-full">
               <TabsList className="grid w-full grid-cols-2 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-2xl mb-6">
@@ -930,7 +1134,6 @@ export default function ApplicationDialog({
                 </TabsTrigger>
               </TabsList>
 
-              {/* Työpaikkakuvaus adaptiivisella teeman taustalla */}
               <TabsContent
                 value="description"
                 className="focus-visible:outline-none"
@@ -953,7 +1156,7 @@ export default function ApplicationDialog({
                     <div>
                       <div className="mb-4 text-center text-xs font-semibold text-amber-600 dark:text-amber-400/80 bg-amber-50 dark:bg-amber-500/10 py-2 px-3 rounded-xl border border-amber-200 dark:border-amber-500/20">
                         Katsot demotilaa. Historia on esimerkki yritykselle{" "}
-                        {app.company}.
+                        {companyName || app.company}.
                       </div>
                       <ApplicationHistory
                         history={getDemoHistoryForApp(app.id) as any}

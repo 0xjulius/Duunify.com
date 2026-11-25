@@ -186,7 +186,8 @@ export async function POST(req: Request) {
       await supabaseAdmin.from("notifications").insert({
         user_id: userId,
         title: "AI-krediitit loppuneet",
-        message: "Saatekirjeen luonti epäonnistui, koska AI-krediittisi ovat loppu.",
+        message:
+          "Saatekirjeen luonti epäonnistui, koska AI-krediittisi ovat loppu.",
         type: "warning",
         read: false,
       });
@@ -194,7 +195,8 @@ export async function POST(req: Request) {
       console.timeEnd("⏱️ Koko pyyntö yhteensä");
       return NextResponse.json(
         {
-          error: "AI-krediittisi ovat loppuneet! Lataa lisää krediittejä jatkaaksesi.",
+          error:
+            "AI-krediittisi ovat loppuneet! Lataa lisää krediittejä jatkaaksesi.",
         },
         { status: 403 },
       );
@@ -255,7 +257,7 @@ export async function POST(req: Request) {
     const safeJobDescription = anonymizeText(rawJobDescription);
 
     const prompt = `
-Olet huipputason uravalmentaja ja rekrytointiasiantuntija. Tehtäväsi on kirjoittaa erittäin laadukas, uskottava ja tarkasti kyseiseen työtehtävään kohdennettu työhakemus.
+Olet huipputason uravalmentaja ja rekrytointiasiantuntija. Tehtäväsi on kirjoittaa erittäin laadukas, uskottava ja tarkasti kyseiseen työtehtävään kohdennettu yksilöllinen työhakemus.
 
 LÄHTÖTIEDOT:
 TYÖPAIKKAILMOITUS:
@@ -271,7 +273,7 @@ ${safeBaseCoverLetter || "Hakijalla on vahva perusosaaminen ja motivaatio kehitt
 ANALYYSI JA TAUSTAOHJEET (Noudata näitä sisäisesti):
 1. Tunnista työpaikkailmoituksesta tärkeimmät vastuut sekä mitä osaamista työnantaja todellisuudessa etsii.
 2. Yhdistä hakijan tausta (CV ja aiempi kokemus) suoraan näihin tarpeisiin ja korosta konkreettista hyötyä työnantajalle.
-3. REHELLISYYS: Älä KOSKAAN keksi hakijalle työkokemusta, taitoja, sertifikaatteja tai koulutusta, joita ei ole mainittu taustatiedoissa. Käsittele puuttuva kokemus oppimiskyvyn ja vahvan perustan kautta. Älä yritä tehdä juniorista senioria.
+3. REHELLISYYS: Älä KOSKAAN keksi hakijalle työkokemusta, taitoja, sertifikaatteja tai koulutusta, joita ei ole mainittu taustatiedoissa. Käsittele puuttuva kokemus oppimiskyvyn ja vahvan perustan kautta.
 4. TYYLI: Kirjoita ammattimaisesti, luonnollisesti ja itsevarman realistisesti. Vältä tyhjiä adjektiiveja (esim. passionate, motivated, hardworking, excellent), ellei niitä perustella konkreettisin näytöin. Tekstin tulee kuulostaa ajattelevan ihmisen – ei tekoälyn – kirjoittamalta. Tämä vaatii täydellistä ja idiomaattista suomen kielen hallintaa ilman englannista kopioituja lauserakenteita (anglismeja).
 5. KIELIASU, KIELIOPPI JA OCR-KORJAUS: Korjaa automaattisesti kaikki syötemateriaalissa (CV/saatekirje) olevat ilmeiset kirjoitus-, lyönti- ja tekstinparsintavirheet (esim. muuta "konomi" muotoon "merkonomi"). Varmista, että suomen kielen taivutusmuodot, yhdyssanat ja kurssien nimet ovat täysin virheettömiä. KIINNITÄ ERITYISTÄ HUOMIOTA REKTIOIHIN JA VERBIEN KÄYTTÖÖN: Varmista verbien transitiivisuus (esim. älä koskaan kirjoita "olen kertynyt kokemusta", vaan oikeaoppisesti "minulle on kertynyt kokemusta" tai "olen kerryttänyt/kerännyt kokemusta"). Tekstin on oltava kieliopillisesti virheetöntä ammattisuomea.
 
@@ -288,7 +290,9 @@ HAKEMUKSEN RAKENNE JA SISÄLTÖ (Kirjoita osiot TÄSMÄLLEEN tässä järjestyks
 
 2. JOHDANTO (Mene suoraan asiaan ilman selittelyä tai metapuhetta):
    - Ensimmäinen virke ilmoittaa suoraan ja konstailematta haettavan tehtävän.
+   - Aloita suoraan sillä, miksi olet erinomainen työntekijä tähän työtehtävään.
    - Sitä seuraavat 2-3 lausetta kytkevät hakijan taustan suoraan tehtävän keskeisimpään vaatimukseen. Älä selitä "miksi kiinnostuit", vaan kerro mitä tuot mukanasi.
+   - ÄLÄ VALEHTELE OSAAMISTA, jos jotain osaamista ei ole, niin korosta motivaatiota ja kiinnostusta!
 
 3. KOULUTUS:
    - Käytä otsikkona täsmälleen Markdown-muotoa: ## Koulutus
@@ -300,6 +304,8 @@ HAKEMUKSEN RAKENNE JA SISÄLTÖ (Kirjoita osiot TÄSMÄLLEEN tässä järjestyks
 4. TYÖKOKEMUS JA KÄYTÄNNÖN OSAAMINEN:
    - Käytä otsikkona täsmälleen Markdown-muotoa: ## Työkokemus ja käytännön osaaminen
    - Yhdistä aiempi kokemus uuden tehtävän vaatimuksiin.
+   - Tarkastat mahdollisista hakijan liitteistä hakijan työkokemuksen määrän vuosina pyöristäen ylöspäin. Lajittele kuitenkin suurin työkokemus ensimmäisenä, ja jätä oleellinen kokemus viimeiseksi.
+   - ÄLÄ LUETTELE YKSITTÄISTEN KURSSIEN, TYÖKALUJEN TAI SERTIFIKAATTIEN NIMIÄ (kuten Elements of AI, Azure Fundamentals jne. ZERO-TRUST). Vaan puhut niistä yleisesti.
    - Kerro mitä hyötyä aiemmasta kokemuksesta on uudessa roolissa.
    - Älä mainitse yritysten nimiä, vaan käytä geneerisiä ilmaisuja (esim. "kansainvälinen ohjelmistoyritys", "pienyritys", "startup", "julkinen organisaatio").
 
@@ -307,9 +313,9 @@ HAKEMUKSEN RAKENNE JA SISÄLTÖ (Kirjoita osiot TÄSMÄLLEEN tässä järjestyks
    - Käytä otsikkona täsmälleen Markdown-muotoa: ## Miksi koen olevani sopiva tähän tehtävään?
    - Luo selkeä lista, jossa on 6 kohdan Markdown-bullet-listaus (käytä viivaa - ).
    - Jokaisen kohdan ALUSSA on OMA ERILLINEN RIVINSÄ. Älä yhdistä kohtia samalle riville tai käytä palluroita (•) tekstin seassa.
-   - ÄLÄ LUETTELE YKSITTÄISTEN KURSSIEN TAI SERTIFIKAATTIEN NIMIÄ (esim. Elements of AI, Azure jne.). Käytä vain yleisiä teemailmaisuja (esim. "tietoturva- ja tekoälyopinnot" tai "pilvipalvelusertifikaatit").
    - Muotoile jokainen kohta TÄSMÄLLEEN näin (huomioi viiva ja boldaus):
-
+   - Ota mallia ilmoituksen "Luemme eduksi", Tai "Toivomme, että sinulla on".. -kohtia, joista rakennat nämä vastaukset, mutta korostat vaatimukset tietenkin ensimmäisenä.
+   - Mainitse tässä vain ne työkalut ja tekniikat, mutta älä valehtele. Jos niitä ei ole, korosta motivaatiota ja kiinnostusta oppimaan lisää.
    - **Otsikko boldattuna:** Tähän tulee tiivis selitys siitä, mitä hyötyä tästä on työnantajalle.
 
    - **Toinen otsikko boldattuna:** Tähän tulee seuraava selitys.
@@ -324,6 +330,8 @@ EHDOTON SÄÄNTÖ:
 1. Palauta VASTAUKSEKSI AINOASTAAN valmis työhakemusteksti. Älä kirjoita tekstiin tai sen alkuun/loppuun minkäänlaisia johdantoja, terveisiä, selityksiä, kommentteja tai "Tässä on hakemuksesi" -tyyppisiä lauseita.
 2. AJATUSVIIVOJEN KIELTO: Tekstissä EI SAA esiintyä yhtäkään ajatusviivaa (– / —). Käytä vain normaaleja välimerkkejä, kuten pilkkuja ja pisteitä.
 3. Älä vähättele hakijan osaamista. Älä käytä sanoja kuten "juniori", "perusosaaminen" tai "vähän kokemusta". Keskity siihen, mitä hakija osaa ja mitä hyötyä siitä on työnantajalle.
+4. Vähennä toistoja, jotta jokainen kappale tuo uutta arvoa.
+5. Tarkasta että Aloitus + "Koulutus" + "Työkokemus ja käytännön osaaminen" on enintään 190 sanaa, mutta yli 180 sanaa jonka jälkeen sivunvaihto ja "Miksi koen olevani sopiva tähän tehtävään?"
 `;
 
     // 8. GEMINI-KUTSU (MITATAAN AIKA)
