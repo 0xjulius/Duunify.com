@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   authors: [{ name: "Duunify Team" }],
   creator: "Duunify",
   verification: {
-    google: "zfKHmjeVLy1IUekkCWtvLl8E6gb7ZpRwYIE-Bwx9CtQ",
+    google: "fpyl3h3YkL2JU_xiQqV3QZxuS3ASm1_ydibzrBU-cww",
   },
   openGraph: {
     type: "website",
