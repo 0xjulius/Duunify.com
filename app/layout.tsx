@@ -37,6 +37,9 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Duunify Team" }],
   creator: "Duunify",
+  verification: {
+    google: "zfKHmjeVLy1IUekkCWtvLl8E6gb7ZpRwYIE-Bwx9CtQ",
+  },
   openGraph: {
     type: "website",
     url: "https://duunify.com",
@@ -69,14 +72,14 @@ export default function RootLayout({
   return (
     <html
       lang="fi"
-      suppressHydrationWarning 
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head />
       <body className="min-h-full flex flex-col">
-        <ThemeProvider 
-          attribute="class" 
-          defaultTheme="light" 
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
           enableSystem={false}
         >
           <ModalProvider>{children}</ModalProvider>
